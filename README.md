@@ -11,10 +11,12 @@ The working scheme of both tools is shown in the next figure, and they are expla
 ![sensei](https://github.com/user-attachments/assets/9d697d6e-c3c3-4c4f-a7a7-2a4064da1221)
 -->
 
+---
 # sensei-chat
 
 sensei-chat generates conversation sequences based on a conversation profile that establishes the user context, interaction style and conversation goals. The simulator uses this profile to create a prompt, which is passed to an LLM to obtain user utterances aligned with the profile. Then, it sends these utterances to the chatbot under test to obtain its responses, and overall compose a complete conversation. 
 
+---
 ## Usage
 
 In order to run the simulator, a specific chatbot should be targeted. Chatbots are treated as black-boxes -- they can be accessed via REST APIs. sensei-chat supports chatbots built and deployed with some of the supported technologies like Taskyto, Rasa, or existing chatbots on the web, like kuki or julie (from Armtrak).
@@ -23,12 +25,63 @@ The script "sensei-chat.py" contains the functions to load the user simulator pr
 and save this conversation and its configuration parameters. The user simulator profile is stored in yaml files,
 which should be located in some folder (`examples/profiles/ada/ada-erasmus.yaml`).
 
+Usage parameters:
+
+```
+sensei-chat.py [-h] --technology
+                      {rasa,taskyto,ada-uam,millionbot,genion,lola,serviceform,kuki,julie,rivas_catalina,saic_malaga}
+                      --chatbot CHATBOT --user USER
+                      [--personality PERSONALITY] [--extract EXTRACT]
+                      [--verbose]
+```
+
+For example, the following command executes the simulator on a chatbot with 
+technology taskyto running locally, with all profiles stored in `examples/profiles/pizza-order`  
+and all extracted conversations will be stored in `test_cases/pizza-order`.
+
+```
+python sensei.chat.py
+--technology taskyto
+--chatbot http://127.0.0.1:5000
+--user examples/profiles/pizza-order
+--extract test_cases/pizza-order
+```
+
+### Supported arguments
+
+- `--technology` (required)  
+  Specifies the chatbot technology being used.  
+  **Choices:** `rasa`, `taskyto`, `ada-uam`, `millionbot`, `genion`, `lola`, `serviceform`, `kuki`, `julie`, `rivas_catalina`, `saic_malaga`  
+  **Example:** `--technology rasa`
+
+- `--chatbot` (required)  
+  URL where the chatbot is deployed. This is used as the target for the conversation.  
+  **Example:** `--chatbot http://localhost:5005`
+
+- `--user` (required)  
+  Specifies the user profile for testing the chatbot. This can represent different user scenarios, it can point to a yml file or to a folder.  
+  **Example:** `--user test_profile`
+
+- `--personality` (optional)  
+  Path to a file defining the chatbot’s personality traits or behaviors.  
+  **Example:** `--personality friendly.yml`
+
+- `--extract` (optional, default: `False`)  
+  Path where the conversation between user and chatbot will be stored (extracted).  
+  **Example:** `--extract ./conversations/`
+
+- `--verbose` (optional, flag)  
+  If set, the program will output debug information to help with troubleshooting.  
+  **Usage:** Add `--verbose` to enable debug prints.
+---
+
 ## Environment Configuration
 
 API keys can be set as environment variables.
 
 The most important API key is `OPENAI_API_KEY`.
 
+---
 ## User Profile YAML Configuration
 
 This file contains all the properties the user will follow in order to carry out the conversation. Since the user simulator is
@@ -414,6 +467,8 @@ Then, it selects a random amount of interaction styles to apply to the conversat
     ```
   - default: the user simulator will carry out the conversation in a natural way.
 
+---
+
 # sensei-check
 
 The sensei-check testing module allows executing correctness rules against conversation sets. A YAML-based DSL permits defining the rules, whereby each rule specifies its name, a description, if it is active (inactive rules will be ignored), the number of conversations to apply the rule to, an optional filter to select only the conversations satisfying it, a correctness condition, and an optional error message. Both filters and correctness conditions are specified using Python syntax. The DSL enables oracle-based testing (an oracle on individual conversations), metamorphic testing (a metamorphic relation on more than one conversation), and global rules (conditions checked on all conversations, e.g., to test uniqueness or existential conditions). 
@@ -449,3 +504,35 @@ description: order ids are unique
 conversations: all
 oracle: is_unique('order_id')
 ```
+
+## Usage
+
+```
+sensei-check.py [-h] --rules RULES --conversations CONVERSATIONS
+                       [--verbose] [--dump DUMP]
+```
+
+- `--rules` (required)  
+  Path to the folder containing YAML files with the metamorphic rules.  
+  These rules define how conversations should be tested and validated.  
+  **Example:** `--rules ./rules_folder`
+
+- `--conversations` (required)  
+  Path to the folder containing conversation YAML files (produced by sensei-chat) to analyze against the rules.  
+  **Example:** `--conversations ./chat_logs`
+
+- `--verbose` (optional, flag)  
+  Enables verbose mode for detailed debug output during execution.   
+  **Usage:** `--verbose`
+
+- `--dump` (optional)  
+  Path to a CSV file where statistics and results will be saved.  
+  If not provided, results are only shown on the console.  
+  **Example:** `--dump results.csv`
+
+---
+
+### Usage example:
+
+```bash
+python sensei-check.py --rules ./rules --conversations ./convos --verbose --dump stats.csv
