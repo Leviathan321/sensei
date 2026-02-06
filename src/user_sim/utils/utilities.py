@@ -10,9 +10,26 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import importlib.util
 from .exceptions import *
-from openai import OpenAI
+from openai import AzureOpenAI
 from user_sim.utils.config import errors
 import logging
+from dotenv import load_dotenv
+
+# Load environment variables from .env
+load_dotenv()
+
+# Make sure your key and endpoint are in the environment
+# os.environ["AZURE_OPENAI_KEY"] = "<your_key>"
+# os.environ["AZURE_OPENAI_ENDPOINT"] = "https://<your-resource-name>.openai.azure.com/"
+
+client = AzureOpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+    azure_endpoint=os.environ["AZURE_ENDPOINT"],
+    api_version=os.environ["OPENAI_API_VERSION"])
+
+
+print("openai_key:", os.environ["OPENAI_API_KEY"])
+print("endpoint:", os.environ["AZURE_ENDPOINT"])
 
 logger = logging.getLogger('Info Logger')
 
@@ -33,8 +50,8 @@ def check_keys(key_list: list):
             raise Exception(f"{k} not found")
 
 
-check_keys(["OPENAI_API_KEY"])
-client = OpenAI()
+# check_keys(["OPENAI_API_KEY"])
+# client = OpenAI()
 
 
 def save_json(msg, test_name, path):

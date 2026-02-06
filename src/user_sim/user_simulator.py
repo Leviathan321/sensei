@@ -232,7 +232,8 @@ class UserGeneration:
             self.repetition_track(input_msg)
 
         user_response = self.user_chain.invoke({'history': history, 'reminder': self.my_context.get_context()})
-
+        print("user_response", user_response)
+        
         self.update_history("User", user_response)
 
         self.data_gathering.add_message(self.conversation_history)

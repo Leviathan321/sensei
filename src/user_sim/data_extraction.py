@@ -1,13 +1,21 @@
 import logging
 import json
-from openai import OpenAI
+from openai import AzureOpenAI
 from dateutil import parser
-
+import os
 from user_sim.utils.utilities import check_keys
+from dotenv import load_dotenv
+load_dotenv()
+# check_keys(["OPENAI_API_KEY"])
 
-check_keys(["OPENAI_API_KEY"])
-client = OpenAI()
+client = AzureOpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+    azure_endpoint=os.environ["AZURE_ENDPOINT"],
+    api_version=os.environ["OPENAI_API_VERSION"])
+
 logger = logging.getLogger('Info Logger')
+print("openai_key:", os.environ["OPENAI_API_KEY"])
+print("endpoint:", os.environ["AZURE_ENDPOINT"])
 
 
 class DataExtraction:
@@ -116,10 +124,10 @@ class DataExtraction:
         }
 
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=self.system_message,
-            response_format=response_format
+            model="gpt-5-chat",
+            messages=self.system_message
         )
+        print("response:", response)
         llm_output = json.loads(response.choices[0].message.content)
 
         logger.info(f'LLM output for data extraction: {llm_output}')
