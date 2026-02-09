@@ -221,14 +221,18 @@ class ExecutionStats:
     def get_stats(self):
 
         path_folder = self.path + f"/{self.test_names[-1]}" + f"/{self.serial}" # todo: except for empty test_names list
-
+        print("path_folder", path_folder)
         assistant_response_times = []
         error_df = pd.DataFrame(columns=["conversation", "error_code"])
 
         for file in os.listdir(path_folder):
             if file.endswith(('.yaml', '.yml')):
+                os.makedirs(path_folder, exist_ok=True)
+
                 file_path = os.path.join(path_folder, file)
                 file_name = file
+                # file_path = os.path.join(path_folder, file)
+                # file_name = file
                 with open(file_path, 'r', encoding='utf-8') as yaml_file:
                     try:
                         yaml_content = list(yaml.safe_load_all(yaml_file))

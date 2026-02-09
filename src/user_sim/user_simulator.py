@@ -4,10 +4,26 @@ from .utils.config import errors
 from .utils.utilities import *
 from .data_gathering import *
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import ChatOpenAI
+from langchain_openai import AzureChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from .utils.config import errors
 import logging
+
+from dotenv import load_dotenv
+load_dotenv()
+# check_keys(["OPENAI_API_KEY"])
+
+client = AzureChatOpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+    azure_endpoint=os.environ["AZURE_ENDPOINT"],
+    api_version=os.environ["OPENAI_API_VERSION"],
+    azure_deployment="gpt-4o")
+
+logger = logging.getLogger('Info Logger')
+print("openai_key:", os.environ["OPENAI_API_KEY"])
+print("endpoint:", os.environ["AZURE_ENDPOINT"])
+
+
 
 parser = StrOutputParser()
 logger = logging.getLogger('Info Logger')
@@ -15,13 +31,17 @@ logger = logging.getLogger('Info Logger')
 
 class UserGeneration:
 
-    def __init__(self, user_profile, chatbot):
+    def __init__(self, user_profile, chatbot, user_id = 1):
 
         self.user_profile = user_profile
         self.chatbot = chatbot
         self.temp = user_profile.temperature
         self.model = user_profile.model
-        self.user_llm = ChatOpenAI(model=self.model, temperature=self.temp)
+        # self.user_llm = AzureChatOpenAI(model=self.model, 
+        #                                 temperature=self.temp, client=client)
+
+        self.user_llm = client
+        
         self.conversation_history = {'interaction': []}
         self.ask_about = user_profile.ask_about.prompt()
         self.data_gathering = ChatbotAssistant(user_profile.ask_about.phrases)
@@ -38,6 +58,7 @@ class UserGeneration:
         self.my_context = self.InitialContext()
         self.output_slots = self.__build_slot_dict()
         self.error_report = []
+        self.user_id = user_id
 
     def __build_slot_dict(self):
         slot_dict = {}
@@ -137,6 +158,7 @@ class UserGeneration:
         self.conversation_history['interaction'].append({role: message})
 
     def end_conversation(self, input_msg):
+        # print("gathering register:\n", self.data_gathering.gathering_register)  # Debugging
 
         if self.goal_style[0] == 'steps' or self.goal_style[0] == 'random steps':
             if self.interaction_count >= self.goal_style[1]:

@@ -5,7 +5,7 @@ from user_sim.utils.config import errors
 import pandas as pd
 import yaml
 from colorama import Fore, Style
-from technologies.chatbot_connectors import (Chatbot, ChatbotRasa, ChatbotTaskyto, ChatbotAdaUam, ChatbotMillionBot,
+from technologies.chatbot_connectors import (Chatbot, ChatbotConvNavi, ChatbotRasa, ChatbotTaskyto, ChatbotAdaUam, ChatbotMillionBot,
                                              ChatbotLolaUMU, ChatbotServiceform, KukiChatbot, JulieChatbot, ChatbotCatalinaRivas, ChatbotSaicMalaga, \
     ChatbotGenion)
 from user_sim.data_extraction import DataExtraction
@@ -69,12 +69,14 @@ def get_conversation_metadata(user_profile, the_user, serial=None):
         for output in output_list:
             var_name = list(output.keys())[0]
             var_dict = output.get(var_name)
+            # print("history: ", user.conversation_history)
             my_data_extract = DataExtraction(user.conversation_history,
                                              var_name,
                                              var_dict["type"],
                                              var_dict["description"])
             data_list.append(my_data_extract.get_data_extraction())
-
+        print("data_list: ", data_list)
+      
         data_dict = {k: v for dic in data_list for k, v in dic.items()}
         has_none = any(value is None for value in data_dict.values())
         if has_none:
@@ -136,6 +138,7 @@ def parse_profiles(user_path):
 def build_chatbot(technology, chatbot) -> Chatbot:
     default = Chatbot
     chatbot_builder = {
+        'convnavi': ChatbotConvNavi,
         'rasa': ChatbotRasa,
         'taskyto': ChatbotTaskyto,
         'ada-uam': ChatbotAdaUam,
@@ -156,6 +159,7 @@ def build_chatbot(technology, chatbot) -> Chatbot:
 
 def generate(technology, chatbot, user, personality, extract):
     profiles = parse_profiles(user)
+    # print(f"Profiles to be executed: {profiles}")
     serial = generate_serial()
     my_execution_stat = ExecutionStats(extract, serial)
 
@@ -164,11 +168,13 @@ def generate(technology, chatbot, user, personality, extract):
         test_name = user_profile.test_name
         start_time_test = timeit.default_timer()
 
+        print("conversation_number: ", user_profile.conversation_number)
+
         for i in range(user_profile.conversation_number):
             the_chatbot = build_chatbot(technology, chatbot)
 
             the_chatbot.fallback = user_profile.fallback
-            the_user = UserGeneration(user_profile, the_chatbot)
+            the_user = UserGeneration(user_profile, the_chatbot, user_id = i)
             bot_starter = user_profile.is_starter
             response_time = []
 
@@ -180,7 +186,7 @@ def generate(technology, chatbot, user, personality, extract):
                     print_user(user_msg)
 
                     start_response_time = timeit.default_timer()
-                    is_ok, response = the_chatbot.execute_with_input(user_msg)
+                    is_ok, response = the_chatbot.execute_with_input(user_msg, user_id = the_user.user_id)
                     end_response_time = timeit.default_timer()
                     response_time.append(timedelta(seconds=end_response_time - start_response_time).total_seconds())
 
@@ -217,7 +223,7 @@ def generate(technology, chatbot, user, personality, extract):
                     print_user(user_msg)
 
                     start_response_time = timeit.default_timer()
-                    is_ok, response = the_chatbot.execute_with_input(user_msg)
+                    is_ok, response = the_chatbot.execute_with_input(user_msg, user_id = the_user.user_id)
                     end_response_time = timeit.default_timer()
                     time_sec = timedelta(seconds=end_response_time - start_response_time).total_seconds()
                     response_time.append(time_sec)
@@ -267,7 +273,7 @@ def generate(technology, chatbot, user, personality, extract):
 if __name__ == '__main__':
     parser = ArgumentParser(description='Conversation generator for a chatbot')
     parser.add_argument('--technology', required=True,
-                        choices=['rasa', 'taskyto', 'ada-uam', 'millionbot', 'genion', 'lola', 'serviceform', 'kuki', 'julie', 'rivas_catalina', 'saic_malaga'],
+                        choices=['convnavi', 'rasa', 'taskyto', 'ada-uam', 'millionbot', 'genion', 'lola', 'serviceform', 'kuki', 'julie', 'rivas_catalina', 'saic_malaga'],
                         help='Technology the chatbot is implemented in')
     parser.add_argument('--chatbot', required=True, help='URL where the chatbot is deployed')
     parser.add_argument('--user', required=True, help='User profile to test the chatbot')

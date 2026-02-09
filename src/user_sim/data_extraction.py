@@ -1,136 +1,189 @@
-import logging
-import json
-from openai import AzureOpenAI
-from dateutil import parser
 import os
-from user_sim.utils.utilities import check_keys
+import json
+import logging
+from dateutil import parser
 from dotenv import load_dotenv
+from openai import AzureOpenAI
+
+# ---------------------------------------------------------------------
+# Environment & client setup
+# ---------------------------------------------------------------------
+
 load_dotenv()
-# check_keys(["OPENAI_API_KEY"])
+
+REQUIRED_ENV_VARS = [
+    "OPENAI_API_KEY",
+    "AZURE_ENDPOINT",
+    "OPENAI_API_VERSION",
+]
+
+for key in REQUIRED_ENV_VARS:
+    if key not in os.environ:
+        raise EnvironmentError(f"Missing environment variable: {key}")
 
 client = AzureOpenAI(
     api_key=os.environ["OPENAI_API_KEY"],
     azure_endpoint=os.environ["AZURE_ENDPOINT"],
-    api_version=os.environ["OPENAI_API_VERSION"])
+    api_version=os.environ["OPENAI_API_VERSION"],
+)
 
-logger = logging.getLogger('Info Logger')
-print("openai_key:", os.environ["OPENAI_API_KEY"])
-print("endpoint:", os.environ["AZURE_ENDPOINT"])
+# ---------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("DataExtraction")
+
+# ---------------------------------------------------------------------
+# DataExtraction class
+# ---------------------------------------------------------------------
 
 class DataExtraction:
+    """
+    Extracts a single variable from a conversation using Azure OpenAI
+    chat completions with JSON-only output and post-hoc validation.
+    """
 
     def __init__(self, conversation, variable_name, dtype, description):
-
-        self.conversation = f"{conversation['interaction']}"
-        self.dtype = dtype
-        self.variable = variable_name
-        self.description = description
-        self.prompt = f"""
-        You're an assistant that analyzes a conversation between a user and a chatbot.
-        Your objective is to test the chatbot's capabilities by extract the information only if the chatbot provides it 
-        or verifies it. Output only the requested data, If you couldn't find it, output None.
         """
+        Parameters
+        ----------
+        conversation : dict
+            Must contain key 'interaction' with conversation text
+        variable_name : str
+            Name of the extracted variable
+        dtype : str
+            One of: int, float, money, str, bool, time, date
+        description : str
+            Description of the variable to extract
+        """
+        self.conversation = conversation["interaction"]
+        self.variable = variable_name
+        self.dtype = dtype
+        self.description = description
 
-        self.system_message = [
-            {"role": "system",
-             "content": self.prompt},
-            {"role": "user",
-             "content": self.conversation}
-        ]
+        self.base_system_prompt = (
+            "You are an assistant that extracts structured information "
+            "from a conversation between a user and a chatbot.\n"
+            "Return ONLY a valid JSON object with exactly one key named 'answer'.\n"
+            "If the information is not explicitly stated or confirmed, "
+            "set 'answer' to null.\n"
+            "Do not include explanations, comments, or extra keys."
+        )
+
+    # -----------------------------------------------------------------
+    # Type casting
+    # -----------------------------------------------------------------
 
     @staticmethod
-    def data_process(text, dtype):
-        logger.info(f'input text on data process for casting: {text}')
+    def data_process(value, dtype):
+        logger.info(f"Raw extracted value: {value}")
 
-        if text is None or text == 'null':
-            return text
+        if value is None:
+            return None
+
         try:
-            if dtype == 'int':
-                return int(text)
-            elif dtype == 'float':
-                return float(text)
-            elif dtype == 'money':
-                return text
-            elif dtype == 'str':
-                return str(text)
-            elif dtype == 'bool':
-                return bool(text)
-            elif dtype == 'time':
-                time = parser.parse(text).time().strftime("%H:%M:%S")
-                return time
-            elif dtype == 'date':
-                date = parser.parse(text).date()
-                return date
+            if dtype == "int":
+                return int(value)
+            elif dtype == "float":
+                return float(value)
+            elif dtype == "bool":
+                return bool(value)
+            elif dtype == "time":
+                return parser.parse(value).time().strftime("%H:%M:%S")
+            elif dtype == "date":
+                return parser.parse(value).date()
+            elif dtype in {"money", "str"}:
+                return str(value)
             else:
-                return text
+                logger.warning(f"Unsupported dtype '{dtype}', returning raw value.")
+                return value
+        except Exception as e:
+            logger.warning(f"Type casting failed: {e}")
+            return None
 
-        except ValueError as e:
-            logger.warning(f"Error in casting: {e}. Returning 'str({str(text)})'.")
-            return str(text)
+    # -----------------------------------------------------------------
+    # Prompt helpers
+    # -----------------------------------------------------------------
 
-    def get_data_prompt(self):
+    def _format_instruction(self):
+        format_map = {
+            "int": "Return an integer.",
+            "float": "Return a numeric value.",
+            "money": "Return the monetary amount, including currency if mentioned.",
+            "str": "Return a concise string.",
+            "bool": "Return true or false.",
+            "time": "Return time in HH:MM:SS format.",
+            "date": "Return date in a Python-readable date format.",
+        }
+        return format_map.get(self.dtype, "Return the value as a string.")
 
-        data_type = {'int': 'integer',
-                     'float': 'number',
-                     'money': 'string',
-                     'str': "string",
-                     'time': 'string',
-                     'bool': 'boolean',
-                     'date': 'string'}
-
-        data_format = {'int': '',
-                       'float': '',
-                       'money': 'Output the data as money with the currency used in the conversation',
-                       'str': "Extract and  display concisely only the requested information "
-                              "without including additional context",
-                       'time': 'Output the data in a "hh:mm:ss" format',
-                       'date': 'Output the data in a date format understandable for Python with this structure: dd/mm/yyyy'}
-
-        prompt_type = data_type.get(self.dtype)
-        d_format = data_format.get(self.dtype)
-        return prompt_type, d_format
+    # -----------------------------------------------------------------
+    # Main extraction call
+    # -----------------------------------------------------------------
 
     def get_data_extraction(self):
+        extraction_prompt = (
+            f"{self.description}\n"
+            f"{self._format_instruction()}\n\n"
+            "Output format:\n"
+            '{ "answer": <value or null> }'
+        )
+        conversation_text = "\n".join(
+                f"User: {turn['User']}" if 'User' in turn else f"Assistant: {turn['Assistant']}"
+                for turn in self.conversation
+        )
+        messages = [
+            {"role": "system", "content": self.base_system_prompt},
+            {"role": "system", "content": extraction_prompt},
+            {"role": "user", "content": conversation_text},
+        ]
 
-        dtype = self.get_data_prompt()[0]
-        dformat = self.get_data_prompt()[1]
-
-        if dtype is None:
-            logger.warning(f"Data type {self.dtype} is not supported. Using 'str' by default.")
-            dtype = 'string'
-
-        if dformat is None:
-            logger.warning(f"Data format for {self.dtype} is not supported. Using default format.")
-            dformat = "Extract and  display concisely only the requested information without including additional context"
-        
-        response_format = {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "data_extraction",
-                "strict": True,
-                "schema": {
-                    "type": "object",
-                    "required": ["answer"],
-                    "additionalProperties": False,
-                    "properties": {
-                        "answer": {
-                            "type": [dtype, 'null'],
-                            "description": f"{self.description}. {dformat}"
-                        }
-                    }
-                }
-            }
-        }
+        # print("Conversation:\n", self.conversation)  # Debugging
 
         response = client.chat.completions.create(
-            model="gpt-5-chat",
-            messages=self.system_message
+            model="gpt-4o-mini",  # Azure deployment name
+            messages=messages,
+            response_format={"type": "json_object"},
         )
-        print("response:", response)
-        llm_output = json.loads(response.choices[0].message.content)
 
-        logger.info(f'LLM output for data extraction: {llm_output}')
-        text = llm_output['answer']
-        data = self.data_process(text, self.dtype)
-        return {self.variable: data}
+        logger.info("LLM response received.")
+
+        try:
+            payload = json.loads(response.choices[0].message.content)
+        except json.JSONDecodeError as e:
+            logger.error(f"Invalid JSON returned: {e}")
+            return {self.variable: None}
+
+        if not isinstance(payload, dict):
+            logger.warning("Response is not a JSON object.")
+            return {self.variable: None}
+
+        if "answer" not in payload:
+            logger.warning("Missing 'answer' key in response.")
+            return {self.variable: None}
+
+        value = self.data_process(payload["answer"], self.dtype)
+        return {self.variable: value}
+
+
+# ---------------------------------------------------------------------
+# Example usage (can be removed in production)
+# ---------------------------------------------------------------------
+
+if __name__ == "__main__":
+    conversation_example = {
+        "interaction": (
+            "The pizza will arrive in 30 minutes and will cost 12.50 euros."
+        )
+    }
+
+    extractor = DataExtraction(
+        conversation=conversation_example,
+        variable_name="delivery_time",
+        dtype="time",
+        description="Extract the delivery time stated by the chatbot."
+    )
+
+    result = extractor.get_data_extraction()
+    print(result)

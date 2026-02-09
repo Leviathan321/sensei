@@ -30,6 +30,36 @@ class Chatbot:
            Otherwise, False means that there is an error in the chatbot."""
         raise NotImplementedError()
 
+#################################################################
+# ConvNavi
+class ChatbotConvNavi(Chatbot):
+    def __init__(self, url):
+        Chatbot.__init__(self, url = "http://localhost:8000/query")
+
+    def execute_with_input(self, user_msg, user_id = 1, 
+                           llm_type = "gpt-4o-mini"):
+        new_data = {
+            "query": user_msg,
+            "user_id": user_id,
+            "llm_type": llm_type
+        }
+        try:
+            # print(f"########### Sending to ConvNavi to {self.url}:", new_data)
+            post_response = requests.post(self.url, json=new_data)
+            post_response_json = post_response.json()
+            # print("Chatbot response:", post_response_json)
+            if post_response.status_code == 200:
+                message = post_response_json.get('response')
+                return True, message
+            else:
+                # There is an error, but it is an internal error
+                print(f"Server error {post_response.status_code}")
+                errors.append({post_response.status_code: f"Couldn't get response from the server"})
+                return False, f"Something went wrong. Status Code: {post_response.status_code}"
+        except requests.exceptions.JSONDecodeError as e:
+            logger = logging.getLogger('my_app_logger')
+            logger.log(f"Couldn't get response from the server: {e}")
+            return False, 'chatbot internal error'
 
 ##############################################################################################################
 # RASA

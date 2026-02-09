@@ -1,0 +1,99 @@
+test_name: "poi_search_test_custom"
+
+llm:
+  temperature: 0.8
+  model: gpt-4o-mini
+
+user:
+  language: English
+  role: you have to act as a user looking for a point of interest (POI) in a city.
+  context:
+    - personality: personalities/in-car-user.yml
+    - your name is Jon Doe
+    - the user’s language style is chosen randomly and can be formal, neutral, or slangy.
+    - the user’s politeness level is chosen randomly and can be rude, neutral, or polite.
+    - the user’s requests can be not implicit, slightly implicit, or implicit, chosen randomly.
+    - the user’s interaction style is chosen randomly and can be very directive, directive, interrogative, or empathic.
+
+  goals:
+    - "ask for a {{poi_type}}"
+    - "you have payment method {{payment_method}} preferences for bar, car_repair, hotel, cafe, restaurant"
+    - "if the {{poi_type}} restaurant, bar, cafe you provide the food type: {{food_type}}"
+    - "you are also interested in a minimum {{rating}} rating of the place"
+    - "do not ask for any other information than specified"
+    - "do not hallucinate"
+
+    - poi_type:
+        function: random(rand)
+        type: string
+        data:
+          - car_repair
+          - coffee_shop
+          - restaurant
+          - supermarket
+          - cafe
+          - bakery
+          - bar
+          - hotel
+          - cinema
+          - gas_station
+
+    - payment_method:
+        function: random(rand)
+        type: string
+        data:
+          - CASH
+          - CREDIT_CARD
+          - CONTACTLESS
+
+    - food_type:
+        function: random(rand)
+        type: string
+        data:
+          - german
+          - indian
+          - italian
+          - middle_eastern
+          - french
+          - chinese
+          - japanese
+          - thai
+          - mexican
+          - greek
+          - vietnamese
+          - turkish
+          - american
+
+    - rating:
+        function: random(rand)
+        type: float
+        data:
+          - 3.5
+          - 4.0
+          - 4.5
+          - 5.0
+
+chatbot:
+  is_starter: False
+  fallback: I didn't catch that, can you please repeat your request?
+  output:
+    - poi_name:
+        type: str
+        description: the name of the poi place to navigate to
+
+conversation:
+  number: 3
+  goal_style:
+    random steps: 8
+  interaction_style:
+    - random:
+      - long phrases
+      - change your mind
+      - make spelling mistakes
+      - single question
+      - default
+      - change attributes:
+          - poi_type
+          - payment_method
+          - food_type
+          - rating

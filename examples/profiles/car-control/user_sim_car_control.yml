@@ -1,0 +1,50 @@
+test_name: "car_control_test_constraints"
+
+llm:
+  temperature: 0.8
+  model: gpt-4o-mini
+
+user:
+  language: English
+  role: you have to act as a user sending car control requests. when doing change of mind, change value of one component or select related components
+  context:
+    - personality: personalities/in-car-user.yml
+    - the user’s language style is chosen randomly and can be formal, neutral, or slangy.
+    - the user’s politeness level is chosen randomly and can be neutral, or polite.
+    - the user’s requests can be not implicit, slightly implicit, or implicit, chosen randomly.
+    - the user’s interaction style is chosen randomly and can be very directive, directive, interrogative, or empathic.
+    - NEVER apply change of mind in the same utterance.
+    - Try to use coreference to refer to previous mentioned controls when changing your mind, e.g. "Set the front left window to open. Actually, can you also open the rear left one?" or "Set the front left window to open. Actually, can you set it to closed?"
+  goals:
+    - "set the {{car_domain}} {{control}} to {{value}}, where windows: control is one of front_left, front_right, rear_left, rear_right and value is open or closed"
+    - "set the {{car_domain}} {{control}} to {{value}}, where lights: control is one of headlights, fog_lights, interior_front, interior_rear, ambient and value is off, low, or high. The state on just works for fog_lights, interior_fron and rear."
+    - "set the {{car_domain}} {{control}} to {{value}}, where doors: control is one of front_left, front_right, rear_left, rear_right, trunk and value is open or closed"
+    - "set the {{car_domain}} {{control}} to {{value}}, where climate: control is one of temperature_c (16–28), fan_level (0–5), mode (auto, manual)"
+    - "set the {{car_domain}} {{control}} to {{value}}, where wipers: control is state and value is off, intermittent, low, or high"
+    - "set the {{car_domain}} {{control}} to {{value}}, where seat_heating: control is driver or front_passenger and value is off, low, medium, or high"
+    - "set the {{car_domain}} {{control}} to {{value}}, where media: control is radio_state, volume (0–10), radio_station (88.0–108.0), music_genre (pop, rock, jazz, classical, hiphop, electronic) and value is appropriate for the control"
+
+chatbot:
+  is_starter: False
+  fallback: I didn't catch that, can you please repeat your request?
+  output:
+    - car_domain:
+        type: str
+        description: the car subsystem being controlled
+    - control:
+        type: str
+        description: the specific control or actuator
+    - value:
+        type: str
+        description: the value set for the control
+
+conversation:
+  number: 10
+  goal_style:
+    random steps: 8
+  interaction_style:
+    - random:
+      - long phrases
+      - change your mind
+      - single question
+      - default

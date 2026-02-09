@@ -49,7 +49,7 @@ user:
           - Orange Fanta
 
 chatbot:
-  is_starter: True
+  is_starter: False
   fallback: I'm sorry it's a little loud in my pizza shop, can you say that again?
   output:
     - price:
@@ -68,10 +68,7 @@ conversation:
     steps: 5
   interaction_style:
     - random:
-      - make spelling mistakes
       - all questions
       - long phrases
       - change language:
-          - italian
-          - portuguese
-          - chinese
+          - english

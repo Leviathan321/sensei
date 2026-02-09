@@ -1,5 +1,6 @@
 
 import ast
+import time
 import pandas as pd
 
 import re
@@ -7,8 +8,17 @@ from .utils.exceptions import *
 
 import json
 
-from openai import OpenAI
-client = OpenAI()
+from openai import AzureOpenAI
+import os
+# client = OpenAI()
+from dotenv import load_dotenv
+load_dotenv()
+# check_keys(["OPENAI_API_KEY"])
+
+client = AzureOpenAI(
+    api_key=os.environ["OPENAI_API_KEY"],
+    azure_endpoint=os.environ["AZURE_ENDPOINT"],
+    api_version=os.environ["OPENAI_API_VERSION"])
 
 import logging
 logger = logging.getLogger('Info Logger')
@@ -39,7 +49,7 @@ class ChatbotAssistant:
         self.properties = self.process_ask_about(ask_about)
         self.system_message = {"role": "system",
                                "content": "You are a helpful assistant that detects when a query in a conversation "
-                                          "has been answered or confirmed by the chatbot."}
+                                          "has been answered or confirmed by the chatbot. Output information in json format."}
         self.messages = [self.system_message]
         self.gathering_register = []
 
@@ -80,28 +90,49 @@ class ChatbotAssistant:
         self.gathering_register = self.create_dataframe()
 
     def get_json(self):
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=self.messages,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "ask_about_validation",
-                    "strict": True,
-                    "schema": {
-                        "type": "object",
-                        "properties": self.properties,
-                        "required": list(self.properties.keys()),
-                        "additionalProperties": False
-                    }
-                }
-            }
-        )
+        # response = client.chat.completions.create(
+        #     model="gpt-4o-mini",
+        #     messages=self.messages,
+        #     response_format={
+        #         "type": "json_schema",
+        #         "json_schema": {
+        #             "name": "ask_about_validation",
+        #             "strict": True,
+        #             "schema": {
+        #                 "type": "object",
+        #                 "properties": self.properties,
+        #                 "required": list(self.properties.keys()),
+        #                 "additionalProperties": False
+        #             }
+        #         }
+        #     }
+        # )
+
+        max_retries = 5
+        for attempt in range(1, max_retries + 1):
+            try:
+                response = client.chat.completions.create(
+                    model="gpt-5-chat",  # Azure deployment name, not model name
+                    messages=self.messages,
+                    response_format={"type": "json_object"}
+                )
+                break  # success, exit the loop
+            except Exception as e:
+                print(f"Attempt {attempt} failed: {e}")
+                if attempt == max_retries:
+                    raise  # re-raise the exception after final attempt
+                time.sleep(1)  # optional delay before retrying
+        # print("messages sent to LLM for data gathering:", self.messages)
+        # print("response:", response)
         data = json.loads(response.choices[0].message.content)
+        # print("data:", data)
+        # print("data type:", type(data))
         return data
 
     def create_dataframe(self):
         data_dict = self.get_json()
-        df = pd.DataFrame.from_dict(data_dict, orient='index')
+        # print("data_dict:", data_dict)
+        df = pd.json_normalize(data_dict)
+        # df = pd.DataFrame.from_dict(data_dict, orient='index')
         return df
 
