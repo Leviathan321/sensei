@@ -1,138 +1,177 @@
-
 import ast
 import time
+import json
+import re
+import os
+import logging
 import pandas as pd
 
-import re
-from .utils.exceptions import *
-
-import json
-
-from openai import AzureOpenAI
-import os
-# client = OpenAI()
 from dotenv import load_dotenv
+from openai import AzureOpenAI
+from json_repair import repair_json
+
+# ---------------------------------------------------------------------
+# Environment and client setup
+# ---------------------------------------------------------------------
+
 load_dotenv()
-# check_keys(["OPENAI_API_KEY"])
 
 client = AzureOpenAI(
     api_key=os.environ["OPENAI_API_KEY"],
     azure_endpoint=os.environ["AZURE_ENDPOINT"],
-    api_version=os.environ["OPENAI_API_VERSION"])
+    api_version=os.environ["OPENAI_API_VERSION"]
+)
 
-import logging
-logger = logging.getLogger('Info Logger')
+logger = logging.getLogger("Info Logger")
 
+# ---------------------------------------------------------------------
+# Utility functions
+# ---------------------------------------------------------------------
 
 def extract_dict(in_val):
-    reg_ex = r'\{[^{}]*\}'
+    reg_ex = r"\{[^{}]*\}"
     coincidence = re.search(reg_ex, in_val, re.DOTALL)
-
-    if coincidence:
-        return coincidence.group(0)
-    else:
-        return None
+    return coincidence.group(0) if coincidence else None
 
 
 def to_dict(in_val):
     try:
         dictionary = ast.literal_eval(extract_dict(in_val))
-    except (BadDictionaryGeneration, ValueError) as e:
-        logger.error(f"Bad dictionary generation: {e}. Setting empty dictionary value.")
+    except (ValueError, SyntaxError) as e:
+        logger.error(
+            f"Bad dictionary generation: {e}. Setting empty dictionary value."
+        )
         dictionary = {}
     return dictionary
 
+# ---------------------------------------------------------------------
+# Chatbot assistant
+# ---------------------------------------------------------------------
 
 class ChatbotAssistant:
+    """
+    Determines, for each topic in ask_about, whether it has been answered
+    or confirmed by the assistant in a conversation.
+    Output structure is enforced via prompting (Azure OpenAI compatible).
+    """
+
     def __init__(self, ask_about):
 
-        self.properties = self.process_ask_about(ask_about)
-        self.system_message = {"role": "system",
-                               "content": "You are a helpful assistant that detects when a query in a conversation "
-                                          "has been answered or confirmed by the chatbot. Output information in json format."}
+        # Normalize topic names into JSON keys
+        self.ask_about_keys = self.process_ask_about(ask_about)
+
+        keys_str = ", ".join(self.ask_about_keys)
+
+        # System message with explicit structural requirements
+        self.system_message = {
+            "role": "system",
+            "content": (
+                "You analyze a conversation and determine whether specific topics "
+                "have been answered or confirmed by the assistant, NOT by the user.\n\n"
+                "You MUST output a single valid JSON object.\n\n"
+                "For EACH of the following topics:\n"
+                f"keys: {keys_str}\n\n"
+                "The value MUST be an object with EXACTLY these fields:\n"
+                "- verification: boolean\n"
+                "- data: string or null\n\n"
+                
+                "Rules:\n"
+                "1. Every key MUST be present.\n"
+                "2. verification MUST always be present.\n"
+                "3. data MUST always be present (use null if not applicable).\n"
+                "4. If the topic is not answered or confirmed, set "
+                "verification=false and data=null.\n"
+                "5. Do NOT omit any key.\n"
+                "6. Do NOT add extra fields.\n"
+                "7. Output JSON only. No explanations."
+                "8. The topic has to be answered by the assistant."
+
+
+                "Example Output:\n"
+                "Topics: ask_for_a_cafe, has_contactless_payment, ask_for_rating\n"
+                """
+                {{
+                    "ask_for_a_poi_being_cafe": {{
+                        "verification": true,
+                        "data": "cafe"
+                    }},
+                    "poi_has_contactless_payment": {{
+                        "verification": false,
+                        "data": null // because the chatbot did not confirm or provide this information
+                    }},
+                    "ask_for_rating_of_poi": {{
+                        "verification": true,
+                        "data": "4.5"
+                    }}
+                }}
+                """
+            )
+        }
+
         self.messages = [self.system_message]
         self.gathering_register = []
 
-
     @staticmethod
     def process_ask_about(ask_about):
-        properties = {
-        }
-        for ab in ask_about:
-            properties[ab.replace(' ', '_')] = {
-                "type": "object",
-                "properties": {
-                    "verification": {
-                        "type": "boolean",
-                        "description": f"the following has been answered or confirmed by the chatbot: {ab}"
-                    },
-                    "data": {
-                        "type": ["string", "null"],
-                        "description": f"the piece of the conversation where the following has been answered "
-                                       f"or confirmed by the assistant. Don't consider the user's interactions: {ab} "
-                    }
-                },
-                "required": ["verification", "data"],
-                "additionalProperties": False
-            }
-        return properties
+        """
+        Converts topic strings into JSON-safe keys.
+        """
+        return [ab.replace(" ", "_") for ab in ask_about]
 
-    def add_message(self, history):     # adds directly the chat history from user_simulator "self.conversation_history"
+    def add_message(self, history):
+        """
+        Adds the conversation history as a single user message and
+        immediately triggers dataframe creation.
+        """
         text = ""
-        for entry in history['interaction']:
+        for entry in history["interaction"]:
             for speaker, message in entry.items():
                 text += f"{speaker}: {message}\n"
 
-        user_message = {"role": "user",
-                        "content": text}
+        user_message = {
+            "role": "user",
+            "content": text
+        }
 
-        self.messages = [self.system_message] + [user_message]
+        self.messages = [self.system_message, user_message]
         self.gathering_register = self.create_dataframe()
-
+        # assuming df is your dataframe
+        os.makedirs("./tmp", exist_ok=True)  # creates folder if missing
+        temp_file_path = "./tmp/gathering_register.csv"  # Unix-style temp path
+        self.gathering_register.to_csv(temp_file_path, index=False)
+        print(f"Dataframe written to {temp_file_path}")
+        
     def get_json(self):
-        # response = client.chat.completions.create(
-        #     model="gpt-4o-mini",
-        #     messages=self.messages,
-        #     response_format={
-        #         "type": "json_schema",
-        #         "json_schema": {
-        #             "name": "ask_about_validation",
-        #             "strict": True,
-        #             "schema": {
-        #                 "type": "object",
-        #                 "properties": self.properties,
-        #                 "required": list(self.properties.keys()),
-        #                 "additionalProperties": False
-        #             }
-        #         }
-        #     }
-        # )
-
+        """
+        Calls Azure OpenAI and returns the parsed JSON object.
+        """
         max_retries = 5
         for attempt in range(1, max_retries + 1):
             try:
                 response = client.chat.completions.create(
-                    model="gpt-5-chat",  # Azure deployment name, not model name
+                    model="gpt-5-chat",  # Azure deployment name
                     messages=self.messages,
                     response_format={"type": "json_object"}
                 )
-                break  # success, exit the loop
+                break
             except Exception as e:
-                print(f"Attempt {attempt} failed: {e}")
+                logger.error(f"Attempt {attempt} failed: {e}")
                 if attempt == max_retries:
-                    raise  # re-raise the exception after final attempt
-                time.sleep(1)  # optional delay before retrying
-        # print("messages sent to LLM for data gathering:", self.messages)
-        # print("response:", response)
-        data = json.loads(response.choices[0].message.content)
-        # print("data:", data)
-        # print("data type:", type(data))
-        return data
+                    raise
+                time.sleep(1)
+
+        result =  response.choices[0].message.content
+        print("Raw LLM output for data gathering:", result)  # Debugging output
+        result = repair_json(result)
+        print("Repaired LLM output for data gathering:", result)  # Debugging output
+        return json.loads(result)
 
     def create_dataframe(self):
+        """
+        Normalizes the model output into a pandas DataFrame.
+        """
         data_dict = self.get_json()
-        # print("data_dict:", data_dict)
-        df = pd.json_normalize(data_dict)
-        # df = pd.DataFrame.from_dict(data_dict, orient='index')
-        return df
-
+        # print("Data dict received from LLM:", data_dict)  # Debugging output
+        df_long = pd.DataFrame.from_dict(data_dict, orient="index").reset_index()
+        df_long = df_long.rename(columns={"index": "topic"})
+        return df_long

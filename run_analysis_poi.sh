@@ -1,5 +1,5 @@
 
-subfolder="2026-02-09-00-10-03"
+subfolder="2026-02-09-19-17-41"
 
 PYTHONPATH=src python src/sensei-check.py \
         --rules ./examples/rules/poi-search/ \

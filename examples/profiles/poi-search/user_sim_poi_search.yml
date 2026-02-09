@@ -9,22 +9,22 @@ user:
   role: you have to act as a user looking for a point of interest (POI) in a city.
   context:
     - personality: personalities/in-car-user.yml
-    - your name is Jon Doe
     - the user’s language style is chosen randomly and can be formal, neutral, or slangy.
     - the user’s politeness level is chosen randomly and can be rude, neutral, or polite.
     - the user’s requests can be not implicit, slightly implicit, or implicit, chosen randomly.
     - the user’s interaction style is chosen randomly and can be very directive, directive, interrogative, or empathic.
-
-  goals:
-    - "ask for a {{poi_type}}"
-    - "you have payment method {{payment_method}} preferences for bar, car_repair, hotel, cafe, restaurant"
-    - "if the {{poi_type}} restaurant, bar, cafe you provide the food type: {{food_type}}"
-    - "you are also interested in a minimum {{rating}} rating of the place"
     - "do not ask for any other information than specified"
+    - "you can only apply payment method preferences for bar, car_repair, hotel, cafe, restaurant"
     - "do not hallucinate"
 
+  goals:
+    - "you are looking for a {{poi_type}}"
+    - "you have payment method {{payment_method}} preference"
+    - "you are also interested in a minimum {{rating}} rating of the place"
+    - "ask for something else related to the poi not asked before e.g. opening hours"
+
     - poi_type:
-        function: random(rand)
+        function: random(1)
         type: string
         data:
           - car_repair
@@ -39,7 +39,7 @@ user:
           - gas_station
 
     - payment_method:
-        function: random(rand)
+        function: random(1)
         type: string
         data:
           - CASH
@@ -47,7 +47,7 @@ user:
           - CONTACTLESS
 
     - food_type:
-        function: random(rand)
+        function: random(1)
         type: string
         data:
           - german
@@ -65,7 +65,7 @@ user:
           - american
 
     - rating:
-        function: random(rand)
+        function: random(1)
         type: float
         data:
           - 3.5
@@ -84,16 +84,10 @@ chatbot:
 conversation:
   number: 3
   goal_style:
-    random steps: 8
+    all_answered:
+      export: true
+      limit: 5
+
   interaction_style:
     - random:
-      - long phrases
-      - change your mind
-      - make spelling mistakes
       - single question
-      - default
-      - change attributes:
-          - poi_type
-          - payment_method
-          - food_type
-          - rating

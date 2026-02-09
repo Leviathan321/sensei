@@ -44,6 +44,9 @@ class UserGeneration:
         
         self.conversation_history = {'interaction': []}
         self.ask_about = user_profile.ask_about.prompt()
+
+        print("self.ask_about:", self.ask_about)
+        
         self.data_gathering = ChatbotAssistant(user_profile.ask_about.phrases)
         self.user_role_prompt = PromptTemplate(
             input_variables=["reminder", "history"],
@@ -171,6 +174,7 @@ class UserGeneration:
             return True
 
         elif 'all_answered' in self.goal_style[0] or 'default' in self.goal_style[0]:
+            print("gathering register inside end_conversation:\n", self.data_gathering.gathering_register)  # Debugging
             if (self.data_gathering.gathering_register["verification"].all()
                 and self.all_data_collected()
                     or self.goal_style[2] <= self.interaction_count):

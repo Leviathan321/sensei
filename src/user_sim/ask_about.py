@@ -286,6 +286,11 @@ class AskAboutClass:
         self.phrases = self.str_list.copy()
         self.picked_elements = []
 
+        print("variable_list:", self.variable_list)
+        print("str_list:", self.str_list)
+        print("combinations:", self.combinations)
+        print("phrases:", self.phrases)
+
     @staticmethod
     def get_variables(data):
         variables = []

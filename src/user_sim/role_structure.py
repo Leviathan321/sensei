@@ -11,13 +11,16 @@ logger = logging.getLogger('Info Logger')
 
 def pick_goal_style(goal):
 
+    MAX_STEPS = 10
+    MAX_ALL_ANSERED_LIMIT = 10
+
     if goal is None:
         return goal, False
     elif 'steps' in goal:
-        if goal['steps'] < 20:
+        if goal['steps'] < MAX_STEPS:
             return list(goal.keys())[0], goal['steps']
         else:
-            raise OutOfLimitException(f"Goal steps higher than 20 steps: {goal['random steps']}")
+            raise OutOfLimitException(f"Goal steps higher than {MAX_STEPS} steps: {goal['random steps']}")
     elif 'all_answered' in goal or 'default' in goal:
         if isinstance(goal, dict):
 
@@ -29,17 +32,17 @@ def pick_goal_style(goal):
             if 'limit' in goal['all_answered']:
                 all_answered_goal.append(goal['all_answered']['limit'])
             else:
-                all_answered_goal.append(30)
+                all_answered_goal.append(MAX_ALL_ANSERED_LIMIT)
 
             return all_answered_goal
         else:
-            return [goal, False, 30]
+            return [goal, False, MAX_ALL_ANSERED_LIMIT]
 
     elif 'random steps' in goal:
-        if goal['random steps'] < 20:
+        if goal['random steps'] < MAX_STEPS:
             return list(goal.keys())[0], random.randint(1, goal['random steps'])
         else:
-            raise OutOfLimitException(f"Goal steps higher than 20 steps: {goal['random steps']}")
+            raise OutOfLimitException(f"Goal steps higher than {MAX_STEPS} steps: {goal['random steps']}")
     else:
         raise InvalidGoalException(f"Invalid goal value: {goal}")
 
@@ -165,6 +168,8 @@ class RoleData:
         self.conversation_number = self.get_conversation_number(self.validated_data.conversation.number)
         self.goal_style = pick_goal_style(self.validated_data.conversation.goal_style)
         self.interaction_styles = self.pick_interaction_style(self.validated_data.conversation.interaction_style)
+        
+        print("goal style: ", self.goal_style)
 
     def reset_attributes(self):
         logger.info(f"Preparing attributes for next conversation...")

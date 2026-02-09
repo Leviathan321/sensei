@@ -117,7 +117,8 @@ class SingleQuestions(InteractionStyle):
         super().__init__(inter_type='single questions')
 
     def get_prompt(self):
-        return "ask only one question per interaction. "
+        return "ask only one question for your preference/goal per interaction." \
+               "Multiple preferences are not allowed in one sentence."
 
     def get_metadata(self):
         return self.inter_type
