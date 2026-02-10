@@ -19,8 +19,8 @@ user:
 
   goals:
     - "you are looking for a {{poi_type}}"
-    - "you have payment method {{payment_method}} preference"
     - "you are also interested in a minimum {{rating}} rating of the place"
+    - "you have payment method {{payment_method}} preference"
     - "ask for something else related to the poi not asked before e.g. opening hours"
 
     - poi_type:
@@ -44,7 +44,6 @@ user:
         data:
           - CASH
           - CREDIT_CARD
-          - CONTACTLESS
 
     - food_type:
         function: random(1)
@@ -75,7 +74,7 @@ user:
 
 chatbot:
   is_starter: False
-  fallback: I didn't catch that, can you please repeat your request?
+  fallback: Sorry, I cannot find any relevant places. Do you have other preferences in mind?
   output:
     - poi_name:
         type: str

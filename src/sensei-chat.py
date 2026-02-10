@@ -92,13 +92,16 @@ def get_conversation_metadata(user_profile, the_user, serial=None):
     language = {'language': user_profile.language}
     serial_dict = {'serial': serial}
     errors_dict = {'errors': errors}
+    variables_per_turn = {'variables_per_turn': the_user.variables_per_turn}
+    
     metadata = {**serial_dict,
                 **language,
                 **context,
                 **ask_about,
                 **conversation,
                 **data_output,
-                **errors_dict
+                **errors_dict,
+                **variables_per_turn
                 }
 
     return metadata

@@ -450,6 +450,7 @@ class AskAboutClass:
         if isinstance(generator['name'], list) and len(generator['name']) > 1:  # this is for nested forwards
 
             values = next(generator['generator'])
+            print("next values:", values)
             keys = generator['name']
             mapped_combinations = dict(zip(keys, values))
             self.picked_elements.extend([{key: value} for key, value in mapped_combinations.items()])
@@ -466,7 +467,7 @@ class AskAboutClass:
         else:  # this is for everything else
             value = next(generator['generator'])
             name = generator['name']
-
+            
             for index, text in enumerate(self.phrases):
                 matches = re.finditer(pattern, text)
                 for match in matches:
@@ -479,17 +480,19 @@ class AskAboutClass:
                         break
                 else:
                     self.phrases[index] = text
-
+            print("picked_elements:", self.picked_elements)
 
 
 
     def ask_about_processor(self):
         for generator in self.var_generators:
+            print("generator:", generator)
             self.replace_variables(generator)
         return self.phrases
 
     def prompt(self):
         phrases = self.ask_about_processor()
+        print("called prompt user")
         return list_to_phrase(phrases, True)
 
     def reset(self):

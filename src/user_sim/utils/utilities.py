@@ -27,10 +27,6 @@ client = AzureOpenAI(
     azure_endpoint=os.environ["AZURE_ENDPOINT"],
     api_version=os.environ["OPENAI_API_VERSION"])
 
-
-print("openai_key:", os.environ["OPENAI_API_KEY"])
-print("endpoint:", os.environ["AZURE_ENDPOINT"])
-
 logger = logging.getLogger('Info Logger')
 
 

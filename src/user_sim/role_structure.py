@@ -170,7 +170,8 @@ class RoleData:
         self.interaction_styles = self.pick_interaction_style(self.validated_data.conversation.interaction_style)
         
         print("goal style: ", self.goal_style)
-
+        print("interaction styles: ", self.interaction_styles)
+        
     def reset_attributes(self):
         logger.info(f"Preparing attributes for next conversation...")
         self.fallback = self.validated_data.chatbot.fallback

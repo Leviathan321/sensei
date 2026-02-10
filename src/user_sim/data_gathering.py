@@ -161,9 +161,9 @@ class ChatbotAssistant:
                 time.sleep(1)
 
         result =  response.choices[0].message.content
-        print("Raw LLM output for data gathering:", result)  # Debugging output
+        # print("Raw LLM output for data gathering:", result)  # Debugging output
         result = repair_json(result)
-        print("Repaired LLM output for data gathering:", result)  # Debugging output
+        # print("Repaired LLM output for data gathering:", result)  # Debugging output
         return json.loads(result)
 
     def create_dataframe(self):
