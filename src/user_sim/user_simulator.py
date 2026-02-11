@@ -39,15 +39,30 @@ class UserGeneration:
         
         self.conversation_history = {'interaction': []}
         self.ask_about = user_profile.ask_about.prompt()
+        self.ask_about_com = user_profile.ask_about_com.prompt()
+
+        print("ask_about:", self.ask_about)      
+
+        print("ask_about_com:", self.ask_about_com)      
 
         # NEW - for state tracking
+
+        # Generic 
+        self.phrases_per_turn = []
+        self.variables_per_turn = []
+
+        # First POI
         self.phrases_all = user_profile.ask_about.phrases
         self.picked_elements_all = user_profile.ask_about.picked_elements
         self.extra_phrased_used = []
-
-        self.variables_per_turn = []
-        self.phrases_per_turn = []
         self.used_elements = []
+        
+        # COM
+        self.phrases_all_com = user_profile.ask_about.phrases
+        self.picked_elements_all_com = user_profile.ask_about.picked_elements
+        self.extra_phrased_used_com= []
+        self.used_elements_com = []
+     
 
         print("##############################")
         print("user_id:", user_id)
@@ -70,34 +85,44 @@ class UserGeneration:
         self.error_report = []
         self.user_id = user_id
 
-    def get_phrases_for_turn(self):
+        self.applied_com = False
+
+    def get_phrases_for_turn(self,
+                             picked_elements_all, 
+                             phrases_all,
+                             used_elements):
         used_ids = self.pick_elements_for_turn(
             selection_probability=0.5,
-            seed=self.user_id
+            seed=self.user_id,
+            picked_elements_all=picked_elements_all,
+            used_elements=used_elements,
         )
-
-        phrases_turn = ". ".join([self.phrases_all[i] for i in used_ids])
+        print("used_ids", used_ids)
+        print("phrases_all", phrases_all)
+        phrases_turn = ". ".join([phrases_all[i] for i in used_ids])
         return phrases_turn
     
     def pick_elements_for_turn(
         self,
+        picked_elements_all,
+        used_elements,
         selection_probability: float = 0.5,
         seed: int | None = None
     ):
         print("********************************")
-        print("possible_elements:", self.picked_elements_all)
-        print("used_elements:", self.used_elements)
+        print("possible_elements:", picked_elements_all)
+        print("used_elements:", used_elements)
 
-        if not self.picked_elements_all:
-            return {}, self.used_elements.copy(), []
+        if not picked_elements_all:
+            return {}, used_elements.copy(), []
 
         rng = random.Random(seed)
         selected_dict = {}
-        updated_used = self.used_elements.copy()
+        updated_used = used_elements.copy()
         used_ids = []
 
         # assign internal IDs to possible elements
-        element_id_map = {i: elem for i, elem in enumerate(self.picked_elements_all)}
+        element_id_map = {i: elem for i, elem in enumerate(picked_elements_all)}
 
         # mark already used elements
         used_index_set = set()
@@ -110,11 +135,11 @@ class UserGeneration:
 
         # always include the first element if not already used
         if 0 not in used_index_set:
-            updated_used.append(self.picked_elements_all[0])
+            updated_used.append(picked_elements_all[0])
             used_index_set.add(0)
             used_ids.append(0)
 
-        selected_dict.update(self.picked_elements_all[0])
+        selected_dict.update(picked_elements_all[0])
 
         # randomly select remaining elements
         additional_selected = False
@@ -137,12 +162,12 @@ class UserGeneration:
                 selected_dict.update(element)
                 break  # only pick one if needed
 
-        self.used_elements = updated_used
+        used_elements = updated_used
 
         def flatten_turn(turn):
             return {k: v for d in turn for k, v in d.items()}
 
-        self.variables_per_turn.append(flatten_turn(self.used_elements.copy()))
+        self.variables_per_turn.append(flatten_turn(used_elements.copy()))
 
         print("selected_dict:", selected_dict)
         print("updated_variables_per_turn:", self.variables_per_turn)
@@ -223,14 +248,9 @@ class UserGeneration:
             #                    """
 
             #     self.my_context.add_context(change_topic)
-
-            # else:
-            ask_repetition = """
-                            If the assistant asks you to repeat the question, repeat the last question the user 
-                            said but rephrase it.
-                            """
-
-            self.my_context.add_context(ask_repetition)
+            if self.repeat_count > 3:
+                # COM required
+                return None
             return True
         else:
             self.repeat_count = 0
@@ -252,6 +272,10 @@ class UserGeneration:
     def update_history(self, role, message):
         self.conversation_history['interaction'].append({role: message})
 
+    def get_last_user_input(self):
+        utterance = [e['user'] for e in self.conversation_history['interaction'] if 'user' in e][:-1]
+        return utterance
+    
     def is_last_user_turn_repeated(self) -> bool:
         msgs = [e['user'] for e in self.conversation_history['interaction'] if 'user' in e]
         return len(msgs) > 1 and msgs[-1] == msgs[-2]
@@ -300,11 +324,16 @@ class UserGeneration:
                 self.output_slots[var_name] = value[var_name]
         return True
     
-    def update_context_with_new_ask_about(self):
+    def update_context_with_new_ask_about(self, used_elements, phrases_all, picked_elements_all):
         interaction_style_prompt = self.get_interaction_styles_prompt()
         
         print("interaction_style_prompt:", interaction_style_prompt)
-        ask_about_turn_phrases = self.get_phrases_for_turn()
+        ask_about_turn_phrases = self.get_phrases_for_turn(
+            used_elements=used_elements,
+            phrases_all=phrases_all,
+            picked_elements_all=picked_elements_all
+
+        )
         print("ask_about_turn_phrases:", ask_about_turn_phrases)
 
         self.my_context.initiate_context([self.user_profile.context,
@@ -318,28 +347,82 @@ class UserGeneration:
         return self.my_context.get_context()
 
     def get_response(self, input_msg):
-        
-        
+    
         self.update_history("Assistant", input_msg)
         self.data_gathering.add_message(self.conversation_history)
 
         if self.end_conversation(input_msg):
             return "exit"
 
-        if self.repetition_track(input_msg):
+        if self.repetition_track(input_msg) == True:
             print("simulating repetition of user message")
+            print("last variables per tun:", self.variables_per_turn[-1])
+
+                       # else:
+            ask_repetition = f"""
+                            You are simulating the user. Reformulate the last question you said as a user.
+                            Just output the rephrased version, nothing else.
+
+                            Last question:{{}}
+                            """.format(self.get_last_user_input())
+            
+            self.my_context.initiate_context([self.user_profile.context,
+                                                self.get_interaction_styles_prompt(),
+                                                ])
+                
+            language_context = self.user_profile.get_language()
+
+            self.my_context.add_context(language_context)            
+            self.my_context.add_context(ask_repetition)
+
             self.variables_per_turn.append(self.variables_per_turn[-1])  # add empty dict for this turn since no new variables were picke
+            
+        elif self.repetition_track(input_msg) == None:
+            # if repeated more than x times decide for COM
+
+            phrases_all = self.phrases_all_com
+            picked_elements_all = self.picked_elements_all_com
+            used_elements = self.used_elements_com
+            extra_phrased_used = self.extra_phrased_used_com
+
+            self.update_context_with_new_ask_about(
+                phrases_all=phrases_all,
+                picked_elements_all=picked_elements_all,
+                used_elements=used_elements
+            )
+            self.applied_com = True
         else:
-            if random.random() < 0.7:  
-                print("new ask about added")
+
+            rand_com = random.random()
+
+            if (rand_com < 0.1 and not self.applied_com):
+                phrases_all = self.phrases_all_com
+                picked_elements_all = self.picked_elements_all_com
+                used_elements = self.used_elements_com
+                extra_phrased_used = self.extra_phrased_used_com
+                self.applied_com = True
+            else:
+                phrases_all = self.phrases_all
+                picked_elements_all = self.picked_elements_all
+                used_elements = self.used_elements
+                extra_phrased_used = self.extra_phrased_used
+
+            rand = random.random()
+
+            if rand < 0.7:  
+                print("New ask about added")
                 # add here new information to ask about
-                self.update_context_with_new_ask_about()
+                self.update_context_with_new_ask_about(
+                    phrases_all=phrases_all,
+                    picked_elements_all=picked_elements_all,
+                    used_elements=used_elements
+                )
             else:
                 # take the phrase which dont require los
-                print("simulating phrase without los")
-                num_phrases_extra = len(self.phrases_all) - len(self.picked_elements_all)
+                print("Simulating phrase without los")
+                num_phrases_extra = len(phrases_all) - len(picked_elements_all)
                 if random.randint(0, num_phrases_extra - 1) >= 0:
-                    extra_phrase = self.phrases_all[len(self.picked_elements_all) + len(self.extra_phrased_used)]
+                    extra_phrase = self.phrases_all[len(picked_elements_all) + len(extra_phrased_used)]
                     self.extra_phrased_used.append(extra_phrase)
                     self.my_context.add_context(extra_phrase)
 
@@ -378,7 +461,10 @@ class UserGeneration:
         #                                   interaction_style_prompt,
         #                                   self.ask_about])
 
-        self.update_context_with_new_ask_about()
+        self.update_context_with_new_ask_about(picked_elements_all=self.picked_elements_all,
+                                               used_elements=self.used_elements,
+                                               phrases_all=self.phrases_all
+                                               )
 
         history = self.get_history()
 

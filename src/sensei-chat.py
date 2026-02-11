@@ -101,7 +101,7 @@ def get_conversation_metadata(user_profile, the_user, serial=None):
                 **conversation,
                 **data_output,
                 **errors_dict,
-                **variables_per_turn
+                **variables_per_turn,
                 }
 
     return metadata

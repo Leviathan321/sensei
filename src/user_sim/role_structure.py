@@ -158,7 +158,8 @@ class RoleData:
         self.raw_context = self.validated_data.user.context
         self.context = self.context_processor(self.raw_context)
         self.ask_about = AskAboutClass(self.validated_data.user.goals)
-
+        self.ask_about_com = AskAboutClass(self.validated_data.user.goals)
+        
     #Chatbot
         self.is_starter = self.validated_data.chatbot.is_starter
         self.fallback = self.validated_data.chatbot.fallback

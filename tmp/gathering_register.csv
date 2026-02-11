@@ -1,5 +1,5 @@
 topic,verification,data
-you_are_looking_for_a_coffee_shop,True,Cup Grinders
-you_are_also_interested_in_a_minimum_5.0_rating_of_the_place,True,5.0
-you_have_payment_method_CREDIT_CARD_preference,False,
+you_are_looking_for_a_bar,True,bar
+you_are_also_interested_in_a_minimum_4.5_rating_of_the_place,True,4.5
+you_have_payment_method_CASH_preference,False,
 ask_for_something_else_related_to_the_poi_not_asked_before_e.g._opening_hours,False,
