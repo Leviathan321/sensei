@@ -339,7 +339,7 @@ def str_to_bool(s):
     return {'true': True, 'false': False}[s.lower()]
 
 
-def nlp_processor(msg, patterns=None, threshold=0.5):
+def nlp_processor(msg, patterns=None, threshold=0.8):
     read_patterns = [patterns]
 
     prepro_patterns = [preprocess_text(pattern) for pattern in read_patterns]

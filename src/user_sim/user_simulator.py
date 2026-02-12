@@ -56,13 +56,16 @@ class UserGeneration:
         self.picked_elements_all = user_profile.ask_about.picked_elements
         self.extra_phrased_used = []
         self.used_elements = []
+
+        print("picked_elements:", self.picked_elements_all)
         
         # COM
-        self.phrases_all_com = user_profile.ask_about.phrases
-        self.picked_elements_all_com = user_profile.ask_about.picked_elements
+        self.phrases_all_com = user_profile.ask_about_com.phrases
+        self.picked_elements_all_com = user_profile.ask_about_com.picked_elements
         self.extra_phrased_used_com= []
         self.used_elements_com = []
-     
+
+        print("picked_elements_com:", self.picked_elements_all_com)
 
         print("##############################")
         print("user_id:", user_id)
@@ -235,7 +238,7 @@ class UserGeneration:
         logger.info(f'Context list: {self.my_context.context_list}')
 
         if nlp_processor(response, self.chatbot.fallback, 0.6):
-
+            print("REPETITION CHECK")
             self.repeat_count += 1
             self.loop_count += 1
             logger.info(f"is fallback. Repeat_count: {self.repeat_count}. Loop count: {self.loop_count}")
@@ -248,7 +251,7 @@ class UserGeneration:
             #                    """
 
             #     self.my_context.add_context(change_topic)
-            if self.repeat_count > 3:
+            if self.repeat_count > 2:
                 # COM required
                 return None
             return True
@@ -361,7 +364,7 @@ class UserGeneration:
                        # else:
             ask_repetition = f"""
                             You are simulating the user. Reformulate the last question you said as a user.
-                            Just output the rephrased version, nothing else.
+                            Just output the rephrased version, nothing else. Do not output the same utterance.
 
                             Last question:{{}}
                             """.format(self.get_last_user_input())
