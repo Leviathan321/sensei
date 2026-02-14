@@ -236,7 +236,7 @@ class UserGeneration:
 
         self.my_context.reset_context()
         logger.info(f'Context list: {self.my_context.context_list}')
-
+        print("In repetition track")
         if nlp_processor(response, self.chatbot.fallback, 0.6):
             print("REPETITION CHECK")
             self.repeat_count += 1
