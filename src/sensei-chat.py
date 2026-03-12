@@ -220,7 +220,7 @@ def generate(technology, chatbot, user, personality, extract):
                 else:
                     user_msg = the_user.get_response(response)
 
-                if user_msg == "exit":
+                if user_msg in ["Stop.", "Stop", "exit"]:
                     break
                 else:
                     print_user(user_msg)

@@ -14,6 +14,7 @@ from openai import AzureOpenAI
 from user_sim.utils.config import errors
 import logging
 from dotenv import load_dotenv
+import time
 
 # Load environment variables from .env
 load_dotenv()
@@ -338,10 +339,10 @@ def preprocess_text(text):
 def str_to_bool(s):
     return {'true': True, 'false': False}[s.lower()]
 
-
 def nlp_processor(msg, patterns=None, threshold=0.8):
-    read_patterns = [patterns]
+    start = time.perf_counter()
 
+    read_patterns = [patterns]
     prepro_patterns = [preprocess_text(pattern) for pattern in read_patterns]
 
     vectorizer = TfidfVectorizer().fit(prepro_patterns)
@@ -358,10 +359,12 @@ def nlp_processor(msg, patterns=None, threshold=0.8):
     max_sim = similarities.max()
 
     # Definir un umbral de similitud para detectar fallback
+    # print("similarity: max_sim >= threshold", max_sim >= threshold)
+
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    # print(f"[TIME] nlp_processor total: {elapsed_ms:.2f} ms")
 
     return max_sim >= threshold
-
-
 def build_sequence(pairs):
     mapping = {}
     starts = set()

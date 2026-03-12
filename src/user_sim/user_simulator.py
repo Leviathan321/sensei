@@ -41,10 +41,10 @@ class UserGeneration:
         self.ask_about = user_profile.ask_about.prompt()
         self.ask_about_com = user_profile.ask_about_com.prompt()
 
+        print("##################")
         print("ask_about:", self.ask_about)      
-
         print("ask_about_com:", self.ask_about_com)      
-
+        print("##################")
         # NEW - for state tracking
 
         # Generic 
@@ -96,21 +96,19 @@ class UserGeneration:
                              used_elements):
         used_ids = self.pick_elements_for_turn(
             selection_probability=0.5,
-            seed=self.user_id,
             picked_elements_all=picked_elements_all,
             used_elements=used_elements,
         )
         print("used_ids", used_ids)
-        print("phrases_all", phrases_all)
+        # print("phrases_all", phrases_all)
         phrases_turn = ". ".join([phrases_all[i] for i in used_ids])
         return phrases_turn
-    
+        
     def pick_elements_for_turn(
         self,
         picked_elements_all,
         used_elements,
-        selection_probability: float = 0.5,
-        seed: int | None = None
+        selection_probability: float = 0.5
     ):
         print("********************************")
         print("possible_elements:", picked_elements_all)
@@ -118,8 +116,7 @@ class UserGeneration:
 
         if not picked_elements_all:
             return {}, used_elements.copy(), []
-
-        rng = random.Random(seed)
+        
         selected_dict = {}
         updated_used = used_elements.copy()
         used_ids = []
@@ -149,7 +146,7 @@ class UserGeneration:
         for idx, element in element_id_map.items():
             if idx == 0 or idx in used_index_set:
                 continue
-            if rng.random() < selection_probability:
+            if random.random() < selection_probability:
                 updated_used.append(element)
                 used_ids.append(idx)
                 selected_dict.update(element)
@@ -157,13 +154,14 @@ class UserGeneration:
 
         # ensure at least one additional element is selected
         if not additional_selected:
-            for idx, element in element_id_map.items():
-                if idx == 0 or idx in used_index_set:
-                    continue
+            available_indices = [idx for idx in element_id_map.keys() 
+                            if idx != 0 and idx not in used_index_set]
+            if available_indices:
+                chosen_idx = random.choice(available_indices)
+                element = element_id_map[chosen_idx]
                 updated_used.append(element)
-                used_ids.append(idx)
+                used_ids.append(chosen_idx)
                 selected_dict.update(element)
-                break  # only pick one if needed
 
         used_elements = updated_used
 
@@ -176,7 +174,6 @@ class UserGeneration:
         print("updated_variables_per_turn:", self.variables_per_turn)
         print("**************")
         return used_ids
-
     
     def __build_slot_dict(self):
         slot_dict = {}
@@ -236,6 +233,7 @@ class UserGeneration:
 
         self.my_context.reset_context()
         logger.info(f'Context list: {self.my_context.context_list}')
+        print("**********************")
         print("In repetition track")
         if nlp_processor(response, self.chatbot.fallback, 0.6):
             print("REPETITION CHECK")
@@ -262,7 +260,7 @@ class UserGeneration:
 
     @staticmethod
     def conversation_ending(response):
-        return nlp_processor(response, "src/testing/user_sim/end_conversation_patterns.yml", 0.5)
+        return nlp_processor(response, "Something wrong happened.", 0.8)
 
     def get_history(self):
 
@@ -301,6 +299,7 @@ class UserGeneration:
             if (self.data_gathering.gathering_register["verification"].all()
                 and self.all_data_collected()
                     or self.goal_style[2] <= self.interaction_count):
+                print("Limit of interactions or all data collected condition met. Ending conversation.")
                 logger.info(f'limit amount of interactions achieved: {self.goal_style[2]}. Ending conversation.')
                 return True
             else:
@@ -321,10 +320,12 @@ class UserGeneration:
                                              var_dict["type"],
                                              var_dict["description"])
             value = my_data_extract.get_data_extraction()
+            #value = {var_name: "mock"}
             if value[var_name] is None:
                 return False
             else:
                 self.output_slots[var_name] = value[var_name]
+            print("######## ALL DATA COLLECTED ######")
         return True
     
     def update_context_with_new_ask_about(self, used_elements, phrases_all, picked_elements_all):
@@ -355,13 +356,13 @@ class UserGeneration:
         self.data_gathering.add_message(self.conversation_history)
 
         if self.end_conversation(input_msg):
-            return "exit"
+            print("Stopping conversation based on end condition.")
+            return "Stop."
 
         if self.repetition_track(input_msg) == True:
             print("simulating repetition of user message")
             print("last variables per tun:", self.variables_per_turn[-1])
 
-                       # else:
             ask_repetition = f"""
                             You are simulating the user. Reformulate the last question you said as a user.
                             Just output the rephrased version, nothing else. Do not output the same utterance.
@@ -424,14 +425,15 @@ class UserGeneration:
                 # take the phrase which dont require los
                 print("Simulating phrase without los")
                 num_phrases_extra = len(phrases_all) - len(picked_elements_all)
-                if random.randint(0, num_phrases_extra - 1) >= 0:
-                    extra_phrase = self.phrases_all[len(picked_elements_all) + len(extra_phrased_used)]
-                    self.extra_phrased_used.append(extra_phrase)
+                
+                if len(extra_phrased_used) < num_phrases_extra:
+                    print("len(extra_phrased_used):", len(extra_phrased_used))
+                    print("len(picked_elements_all):", len(picked_elements_all))
+                    extra_phrase = phrases_all[len(picked_elements_all) + len(extra_phrased_used)]
+                    extra_phrased_used.append(extra_phrase)
                     self.my_context.add_context(extra_phrase)
-
                     self.variables_per_turn.append({})  # add empty dict for this turn since no new variables were picked
-
-        # self.my_context.add_context(self.user_profile.get_language())
+                    # self.my_context.add_context(self.user_profile.get_language())
 
         history = self.get_history()
 
@@ -480,7 +482,6 @@ class UserGeneration:
         
         # print("##############\ncontext before user response:", self.my_context.get_context())
         user_response = self.user_chain.invoke({'history': history, 'reminder': self.my_context.get_context()})
-        print("user_response", user_response)
         
         self.update_history("User", user_response)
 

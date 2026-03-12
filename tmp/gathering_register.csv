@@ -1,5 +1,3 @@
 topic,verification,data
-you_are_looking_for_a_bakery,True,Stock's Bakery
-you_are_also_interested_in_a_minimum_3.5_rating_of_the_place,True,4.5
-you_have_payment_method_CASH_preference,False,
-ask_for_something_else_related_to_the_poi_not_asked_before_e.g._opening_hours,False,
+you_are_looking_for_a_cinema,True,cinema
+you_have_payment_method_CREDIT_CARD_preference,True,CREDIT_CARD
