@@ -1,3 +1,13 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local env / secrets
 .env
-venv
-results
+
+# Virtual environments
+venv/
+
+# Local output
+results/
