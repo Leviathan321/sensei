@@ -50,7 +50,8 @@ class ChatbotConvNavi(Chatbot):
             # print("Chatbot response:", post_response_json)
             if post_response.status_code == 200:
                 message = post_response_json.get('response')
-                return True, message
+                retrieved_obj = post_response_json.get('retrieved_pois')
+                return True, message, retrieved_obj
             else:
                 # There is an error, but it is an internal error
                 print(f"Server error {post_response.status_code}")

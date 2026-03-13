@@ -1,3 +1,6 @@
 topic,verification,data
-you_are_looking_for_a_cinema,True,cinema
-you_have_payment_method_CREDIT_CARD_preference,True,CREDIT_CARD
+you_are_looking_for_a_bakery,True,bakery
+insist_that_it_should_have_payment_method_NO_PREFERENCE_preference,True,no preference
+insist_that_it_should_have_minimum_3.5_rating_of_the_place,True,at least 3.5 rating (4.0 provided)
+insist_that_it_should_have_parking_nearby:_NOO,False,
+ask_for_something_else_related_to_the_poi_not_asked_before_e.g._travel_distance._it_should_not_be_a_preference,False,

@@ -431,6 +431,7 @@ class AskAboutClass:
         for item in data:
             if isinstance(item, str):
                 str_content.append(item)
+        print("get_phrases:", str_content)
         return str_content
 
     @staticmethod

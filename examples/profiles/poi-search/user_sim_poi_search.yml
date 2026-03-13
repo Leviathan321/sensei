@@ -20,7 +20,10 @@ user:
     - the users position is in the city center of Philadelphia, PA, USA
   goals:
     - "you are looking for a {{poi_type}}"
-    - "you have payment method {{payment_method}} preference"
+    - "insist that it should have payment method {{payment_method}} preference"
+    - "insist that it should have minimum {{rating}} rating of the place"
+    - "insist that it should have parking nearby: {{parking_yes}}"
+    - "ask for something else related to the poi not asked before e.g. travel distance. it should not be a preference"
 
     - poi_type:
         function: random(1)
@@ -89,7 +92,7 @@ chatbot:
         description: the name of the poi place to navigate to
 
 conversation:
-  number: 3
+  number: 20
   goal_style:
     all_answered:
       export: true

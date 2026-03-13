@@ -1,5 +1,7 @@
 import logging
 from typing import List
+
+from user_sim.venue_match_extraction import VenueMatchExtraction
 from .data_extraction import DataExtraction
 from .utils.config import errors
 from .utils.utilities import *
@@ -41,11 +43,11 @@ class UserGeneration:
         self.ask_about = user_profile.ask_about.prompt()
         self.ask_about_com = user_profile.ask_about_com.prompt()
 
-        print("##################")
-        print("ask_about:", self.ask_about)      
-        print("ask_about_com:", self.ask_about_com)      
-        print("##################")
-        # NEW - for state tracking
+        # print("##################")
+        # print("ask_about:", self.ask_about)      
+        # print("ask_about_com:", self.ask_about_com)      
+        # print("##################")
+        # # NEW - for state tracking
 
         # Generic 
         self.phrases_per_turn = []
@@ -57,7 +59,7 @@ class UserGeneration:
         self.extra_phrased_used = []
         self.used_elements = []
 
-        print("picked_elements:", self.picked_elements_all)
+        print("picked_elements_all:", self.picked_elements_all)
         
         # COM
         self.phrases_all_com = user_profile.ask_about_com.phrases
@@ -88,7 +90,11 @@ class UserGeneration:
         self.error_report = []
         self.user_id = user_id
 
+        self.conversation_ended = False
+
         self.applied_com = False
+
+        self.retrieved_objs_per_turn = []
 
     def get_phrases_for_turn(self,
                              picked_elements_all, 
@@ -115,10 +121,10 @@ class UserGeneration:
         print("used_elements:", used_elements)
 
         if not picked_elements_all:
-            return {}, used_elements.copy(), []
+            return {}, used_elements, []
         
         selected_dict = {}
-        updated_used = used_elements.copy()
+        updated_used = used_elements
         used_ids = []
 
         # assign internal IDs to possible elements
@@ -234,9 +240,8 @@ class UserGeneration:
         self.my_context.reset_context()
         logger.info(f'Context list: {self.my_context.context_list}')
         print("**********************")
-        print("In repetition track")
         if nlp_processor(response, self.chatbot.fallback, 0.6):
-            print("REPETITION CHECK")
+            print("REPETITION TRACK")
             self.repeat_count += 1
             self.loop_count += 1
             logger.info(f"is fallback. Repeat_count: {self.repeat_count}. Loop count: {self.loop_count}")
@@ -295,19 +300,41 @@ class UserGeneration:
             return True
 
         elif 'all_answered' in self.goal_style[0] or 'default' in self.goal_style[0]:
+            can_be_stopped = False
             # print("gathering register inside end_conversation:\n", self.data_gathering.gathering_register)  # Debugging
-            if (self.data_gathering.gathering_register["verification"].all()
-                and self.all_data_collected()
-                    or self.goal_style[2] <= self.interaction_count):
-                print("Limit of interactions or all data collected condition met. Ending conversation.")
+            # if self.data_gathering.gathering_register["verification"].all() \
+            #     and self.all_data_collected():
+            #     print("All data collected and verified. Ending conversation.")
+            #     can_be_stopped = True
+            # if self.venue_match_extraction():
+            #     print("Match provided. Ending conversation.")
+            #     can_be_stopped = True
+            if self.goal_style[2] <= self.interaction_count:
+                can_be_stopped = True
+                print("Limit of interactions OR all data collected condition met. Ending conversation.")
                 logger.info(f'limit amount of interactions achieved: {self.goal_style[2]}. Ending conversation.')
-                return True
             else:
-                return False
-
+                can_be_stopped = False
+            return can_be_stopped
         else:
             return False
+        
+    def all_preferences_and_info_used(self):
+        print("Checking if all preferences and info have been used...")
+        print("len(self.picked_elements_all):", len(self.picked_elements_all))
+        print("len(self.used_elements):", len(self.used_elements))
+        print("len(self.phrases_all):", len(self.phrases_all))
+        print("len(self.extra_phrased_used):", len(self.extra_phrased_used))
 
+        return len(self.used_elements) + \
+                len(self.extra_phrased_used) == len(self.phrases_all)
+
+    def match_provided(self):
+        verifier = VenueMatchExtraction(self.conversation_history)
+        verdict = verifier.detect()
+        print(verdict["match"], verdict["venue_name"], verdict["venue_type"])
+        return verdict["match"]
+    
     def all_data_collected(self):
         output_list = self.user_profile.output
         for output in output_list:
@@ -325,7 +352,7 @@ class UserGeneration:
                 return False
             else:
                 self.output_slots[var_name] = value[var_name]
-            print("######## ALL DATA COLLECTED ######")
+        print("######## ALL DATA COLLECTED ######")
         return True
     
     def update_context_with_new_ask_about(self, used_elements, phrases_all, picked_elements_all):
@@ -350,16 +377,44 @@ class UserGeneration:
 
         return self.my_context.get_context()
 
-    def get_response(self, input_msg):
-    
-        self.update_history("Assistant", input_msg)
+    def get_user_response(self, input_msg):
         self.data_gathering.add_message(self.conversation_history)
 
-        if self.end_conversation(input_msg):
-            print("Stopping conversation based on end condition.")
-            return "Stop."
+        if self.match_provided() and self.all_preferences_and_info_used():
+            print("Match provided. Confirm destination.")
+            user_response = "Start navigation."
+            
+            self.update_history("User", user_response)
+            self.variables_per_turn.append(self.variables_per_turn[-1])
 
-        if self.repetition_track(input_msg) == True:
+            self.interaction_count += 1
+            
+            # if self.applied_com:
+            #     # we can only terminated COM already applied
+            #     self.conversation_ended = True # propagate end
+            
+            self.conversation_ended = True
+
+            self.navigation_started = True
+
+            return user_response
+        
+        elif self.end_conversation(input_msg):
+            print("Stopping conversation based on end condition.")
+            user_response = "Stop."
+
+            self.update_history("User", user_response)
+            self.interaction_count += 1
+
+            # if self.applied_com:
+            #     # we can only terminated COM already applied
+            #     self.conversation_ended = True # propagate end
+            self.conversation_ended = True
+            self.variables_per_turn.append({})  # add empty dict for this turn since no new variables were picke
+
+            return user_response
+
+        elif self.repetition_track(input_msg):
             print("simulating repetition of user message")
             print("last variables per tun:", self.variables_per_turn[-1])
 
@@ -382,8 +437,10 @@ class UserGeneration:
             self.variables_per_turn.append(self.variables_per_turn[-1])  # add empty dict for this turn since no new variables were picke
             
         elif self.repetition_track(input_msg) == None:
-            # if repeated more than x times decide for COM
-
+            # if repeated more than x times decided or navigation already started for COM
+            print("#################")
+            print("CHANGE OF MIND")
+            print("##################")
             phrases_all = self.phrases_all_com
             picked_elements_all = self.picked_elements_all_com
             used_elements = self.used_elements_com
@@ -400,6 +457,9 @@ class UserGeneration:
             rand_com = random.random()
 
             if (rand_com < 0.1 and not self.applied_com):
+                print("#################")
+                print("CHANGE OF MIND")
+                print("##################")
                 phrases_all = self.phrases_all_com
                 picked_elements_all = self.picked_elements_all_com
                 used_elements = self.used_elements_com
@@ -413,15 +473,16 @@ class UserGeneration:
 
             rand = random.random()
 
-            if rand < 0.7:  
+            if rand < 0.4 and not self.all_preferences_and_info_used():  
                 print("New ask about added")
-                # add here new information to ask about
+                # add here new information to ask about, only if preferences available
                 self.update_context_with_new_ask_about(
                     phrases_all=phrases_all,
                     picked_elements_all=picked_elements_all,
                     used_elements=used_elements
                 )
             else:
+                print("phrases all are:", phrases_all)
                 # take the phrase which dont require los
                 print("Simulating phrase without los")
                 num_phrases_extra = len(phrases_all) - len(picked_elements_all)

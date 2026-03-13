@@ -189,7 +189,8 @@ def generate(technology, chatbot, user, personality, extract):
                     print_user(user_msg)
 
                     start_response_time = timeit.default_timer()
-                    is_ok, response = the_chatbot.execute_with_input(user_msg, user_id = the_user.user_id)
+                    is_ok, response, retrieved_obj = the_chatbot.execute_with_input(user_msg, user_id = the_user.user_id)
+                    the_user.retrieved_objs_per_turn.append(retrieved_obj)
                     end_response_time = timeit.default_timer()
                     response_time.append(timedelta(seconds=end_response_time - start_response_time).total_seconds())
 
@@ -202,46 +203,49 @@ def generate(technology, chatbot, user, personality, extract):
                     else:
                         if response is None:
                             the_user.update_history("Assistant", "Error: The server did not respond.")
-
+                        else:
+                            the_user.update_history("Assistant", response)
                     print_chatbot(response)
                     bot_starter = True
-
-                elif not the_user.conversation_history['interaction']:
-                    is_ok, response = the_chatbot.execute_starter_chatbot()
-                    if not is_ok:
-                        if response is not None:
-                            the_user.update_history("Assistant", "Error: " + response)
-                        else:
-                            the_user.update_history("Assistant", "Error: The server did not respond.")
-                        break
-
-                    print_chatbot(response)
-                    user_msg = the_user.open_conversation(response)
+                    continue
                 else:
-                    user_msg = the_user.get_response(response)
+                    # print("^^^ Generating user turn utterance.^^^^")
+                    user_msg = the_user.get_user_response(response)
+                    print_user(user_msg)
+        
+                print("Getting response from the chatbot...")
+                start_response_time = timeit.default_timer()
+                is_ok, response, retrieved_obj = the_chatbot.execute_with_input(user_msg, user_id = the_user.user_id)
+                the_user.retrieved_objs_per_turn.append(retrieved_obj)
 
-                if user_msg in ["Stop.", "Stop", "exit"]:
+                end_response_time = timeit.default_timer()
+                time_sec = timedelta(seconds=end_response_time - start_response_time).total_seconds()
+                response_time.append(time_sec)
+
+                if response == 'timeout':
+                    break
+
+                print_chatbot(response)
+
+                if not is_ok:
+                    if response is not None:
+                        the_user.update_history("Assistant", "Error: " + response)  # added by JL
+                    else:
+                        the_user.update_history("Assistant", "Error: The server did not respond.")  # added by JL
                     break
                 else:
-                    print_user(user_msg)
+                    the_user.update_history("Assistant", response)  # added by JL
 
-                    start_response_time = timeit.default_timer()
-                    is_ok, response = the_chatbot.execute_with_input(user_msg, user_id = the_user.user_id)
-                    end_response_time = timeit.default_timer()
-                    time_sec = timedelta(seconds=end_response_time - start_response_time).total_seconds()
-                    response_time.append(time_sec)
+                print("STATUS CHECK")
+                print("user.conversation_ended:", the_user.conversation_ended)
+                print("the_user.end_conversation(response)", the_user.end_conversation(response))
 
-                    if response == 'timeout':
-                        break
-
-                    print_chatbot(response)
-
-                    if not is_ok:
-                        if response is not None:
-                            the_user.update_history("Assistant", "Error: " + response)  # added by JL
-                        else:
-                            the_user.update_history("Assistant", "Error: The server did not respond.")  # added by JL
-                        break
+                if the_user.conversation_ended or the_user.end_conversation(response):
+                    """ Can end only if user has acknowledged navigation and no COM more or max turns reached."""
+                    print("Conversation has to be ended.")
+                    break
+     
+                print("+++++++++++ New turn in the conversation. +++++++++++++")
 
             if extract:
                 end_time_conversation = timeit.default_timer()
@@ -259,6 +263,9 @@ def generate(technology, chatbot, user, personality, extract):
 
             user_profile.reset_attributes()
 
+            print("all_objects_retreived:", the_user.retrieved_objs_per_turn)
+
+
         end_time_test = timeit.default_timer()
         execution_time = end_time_test - start_time_test
         formatted_time = timedelta(seconds=execution_time).total_seconds()
@@ -271,7 +278,6 @@ def generate(technology, chatbot, user, personality, extract):
     if extract:
         my_execution_stat.show_global_stats()
         my_execution_stat.export_stats()
-
 
 if __name__ == '__main__':
     parser = ArgumentParser(description='Conversation generator for a chatbot')
