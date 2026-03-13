@@ -6,7 +6,7 @@ llm:
 
 user:
   language: English
-  role: you have to act as a user looking for a point of interest (POI) in a city.
+  role: you have to act as a user looking for a point of interest (POI) in a city. your expression is a bit ambigous and implicit.
   context:
     - personality: personalities/in-car-user.yml
     - the user’s language style is chosen randomly and can be formal, neutral, or slangy.
@@ -92,7 +92,7 @@ chatbot:
         description: the name of the poi place to navigate to
 
 conversation:
-  number: 2
+  number: 20
   goal_style:
     all_answered:
       export: true

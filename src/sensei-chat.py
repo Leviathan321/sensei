@@ -1,5 +1,7 @@
 import time
 import timeit
+import json
+from copy import deepcopy
 from argparse import ArgumentParser
 from user_sim.utils.config import errors
 import pandas as pd
@@ -14,6 +16,7 @@ from user_sim.user_simulator import UserGeneration
 from user_sim.utils.show_logs import *
 from user_sim.utils.utilities import *
 
+from eval.navi.adapter import convert_to_simout, evaluate_simout, save_simout
 
 def print_user(msg): print(f"{Fore.GREEN}User:{Style.RESET_ALL} {msg}")
 
@@ -28,20 +31,6 @@ def get_conversation_metadata(user_profile, the_user, serial=None):
 
         for inter in up.interaction_styles:
             interaction_style_list.append(inter.get_metadata())
-
-        # for conv in user_profile.yaml['conversation']:
-        #     keys = list(conv.keys())
-        #     if keys[0] == 'interaction_style':
-        #         conversation_list.append({'interaction_style': interaction_style_list})
-        #
-        #     elif keys[0] == 'goal_style':
-        #         if 'random steps' in conv[keys[0]]:
-        #             conversation_list.append({keys[0]: {'steps': user_profile.goal_style[1]}})
-        #         else:
-        #             conversation_list.append(conv)
-        #
-        #     else:
-        #         conversation_list.append(conv)
 
         conversation_list.append({'interaction_style': interaction_style_list})
 
@@ -69,7 +58,6 @@ def get_conversation_metadata(user_profile, the_user, serial=None):
         for output in output_list:
             var_name = list(output.keys())[0]
             var_dict = output.get(var_name)
-            # print("history: ", user.conversation_history)
             my_data_extract = DataExtraction(user.conversation_history,
                                              var_name,
                                              var_dict["type"],
@@ -105,7 +93,6 @@ def get_conversation_metadata(user_profile, the_user, serial=None):
                 }
 
     return metadata
-
 
 def parse_profiles(user_path):
     def is_yaml(file):
@@ -162,9 +149,11 @@ def build_chatbot(technology, chatbot) -> Chatbot:
 
 def generate(technology, chatbot, user, personality, extract):
     profiles = parse_profiles(user)
-    # print(f"Profiles to be executed: {profiles}")
     serial = generate_serial()
     my_execution_stat = ExecutionStats(extract, serial)
+
+    # Collect ALL evaluated conversations here, then write ONE json at the end
+    all_evaluated_conversations = []
 
     for profile in profiles:
         user_profile = RoleData(profile, personality)
@@ -196,9 +185,9 @@ def generate(technology, chatbot, user, personality, extract):
 
                     if not is_ok:
                         if response is not None:
-                            the_user.update_history("Assistant", "Error: " + response)  # added by JL
+                            the_user.update_history("Assistant", "Error: " + response)
                         else:
-                            the_user.update_history("Assistant", "Error: The server did not respond.")  # added by JL
+                            the_user.update_history("Assistant", "Error: The server did not respond.")
                         break
                     else:
                         if response is None:
@@ -209,7 +198,6 @@ def generate(technology, chatbot, user, personality, extract):
                     bot_starter = True
                     continue
                 else:
-                    # print("^^^ Generating user turn utterance.^^^^")
                     user_msg = the_user.get_user_response(response)
                     print_user(user_msg)
         
@@ -229,30 +217,30 @@ def generate(technology, chatbot, user, personality, extract):
 
                 if not is_ok:
                     if response is not None:
-                        the_user.update_history("Assistant", "Error: " + response)  # added by JL
+                        the_user.update_history("Assistant", "Error: " + response)
                     else:
-                        the_user.update_history("Assistant", "Error: The server did not respond.")  # added by JL
+                        the_user.update_history("Assistant", "Error: The server did not respond.")
                     break
                 else:
-                    the_user.update_history("Assistant", response)  # added by JL
+                    the_user.update_history("Assistant", response)
 
                 print("STATUS CHECK")
                 print("user.conversation_ended:", the_user.conversation_ended)
                 print("the_user.end_conversation(response)", the_user.end_conversation(response))
 
                 if the_user.conversation_ended or the_user.end_conversation(response):
-                    """ Can end only if user has acknowledged navigation and no COM more or max turns reached."""
                     print("Conversation has to be ended.")
                     break
      
                 print("+++++++++++ New turn in the conversation. +++++++++++++")
 
-            if extract:
-                end_time_conversation = timeit.default_timer()
-                conversation_time = end_time_conversation - start_time_conversation
-                formatted_time_conv = timedelta(seconds=conversation_time).total_seconds()
-                print(f"Conversation Time: {formatted_time_conv} (s)")
+            # Ensure formatted_time_conv exists even when extract=False
+            end_time_conversation = timeit.default_timer()
+            conversation_time = end_time_conversation - start_time_conversation
+            formatted_time_conv = timedelta(seconds=conversation_time).total_seconds()
+            print(f"Conversation Time: {formatted_time_conv} (s)")
 
+            if extract:
                 history = the_user.conversation_history
                 metadata = get_conversation_metadata(user_profile, the_user, serial)
                 dg_dataframe = the_user.data_gathering.gathering_register
@@ -260,6 +248,21 @@ def generate(technology, chatbot, user, personality, extract):
                 answer_validation_data = (dg_dataframe, csv_extraction)
                 save_test_conv(history, metadata, test_name, extract, serial,
                                formatted_time_conv, response_time, answer_validation_data, counter=i)
+            
+            ######### convert to simout and evaluate ############
+            simout = convert_to_simout(user_profile, the_user, serial, time_conv=formatted_time_conv)
+            eval_result = evaluate_simout(simout)
+
+            print("eval_result", eval_result)
+
+            # Keep existing simout saving (optional)
+            save_simout(simout, eval_result, "./test_simout.json")
+
+            # Store evaluated conversation in memory for the final single JSON file
+            record = simout
+            all_evaluated_conversations.append(record)
+
+            #################
 
             user_profile.reset_attributes()
 
@@ -274,6 +277,17 @@ def generate(technology, chatbot, user, personality, extract):
 
         my_execution_stat.add_test_name(test_name)
         my_execution_stat.show_last_stats()
+
+    # Write ONE JSON file with ONE top-level entry: "all_evaluated_conversations"
+    out_path = "./all_evaluated_conversations.json"
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(
+            {"all_evaluated_conversations": all_evaluated_conversations},
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
+    print(f"Saved {len(all_evaluated_conversations)} evaluated conversations to {out_path}")
 
     if extract:
         my_execution_stat.show_global_stats()
