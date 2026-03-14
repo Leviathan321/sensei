@@ -11,3 +11,5 @@ venv/
 
 # Local output
 results/
+
+wandb/*
