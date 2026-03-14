@@ -2,7 +2,7 @@ test_name: "poi_search_test_custom"
 
 llm:
   temperature: 0.8
-  model: gpt-4o-mini
+  model: xyz
 
 user:
   language: English
@@ -96,7 +96,7 @@ conversation:
   goal_style:
     all_answered:
       export: true
-      limit: 2
+      limit: 6
 
   interaction_style:
     - random:

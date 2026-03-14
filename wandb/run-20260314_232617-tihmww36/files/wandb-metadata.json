@@ -1,0 +1,60 @@
+{
+  "os": "Linux-5.15.0-139-generic-x86_64-with-glibc2.31",
+  "python": "CPython 3.10.16",
+  "startedAt": "2026-03-14T22:26:17.915Z",
+  "args": [
+    "--technology",
+    "convnavi",
+    "--chatbot",
+    "http://127.0.0.1:8000/query",
+    "--user",
+    "examples/profiles/poi-search",
+    "--personality",
+    "./personalities/implicit-user.yml",
+    "--save_folder",
+    "results/poi-search",
+    "--generator_llm",
+    "gpt-4o-mini",
+    "--judge_llm",
+    "gpt-5-mini",
+    "--population_size",
+    "2",
+    "--max_time",
+    "00:01:00"
+  ],
+  "program": "/home/lev/Documents/testing/LLM/sensei/src/sensei-chat.py",
+  "codePath": "src/sensei-chat.py",
+  "codePathLocal": "src/sensei-chat.py",
+  "git": {
+    "remote": "git@github.com:Leviathan321/sensei.git",
+    "commit": "5ca476555856dfd5c0bc6201e52586d161cd384c"
+  },
+  "email": "lev.sorokin@tum.de",
+  "root": "/home/lev/Documents/testing/LLM/sensei",
+  "host": "lev-ubuntu",
+  "executable": "/home/lev/Documents/testing/LLM/sensei/venv/bin/python",
+  "cpu_count": 4,
+  "cpu_count_logical": 8,
+  "gpu": "NVIDIA GeForce 940MX",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "216419323904",
+      "used": "194650931200"
+    }
+  },
+  "memory": {
+    "total": "16611430400"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA GeForce 940MX",
+      "memoryTotal": "2147483648",
+      "cudaCores": 384,
+      "architecture": "Maxwell",
+      "uuid": "GPU-f79d740a-3db2-59a6-0145-059591a6c27d"
+    }
+  ],
+  "cudaVersion": "12.4",
+  "writerId": "kewgbiik48pw1f999t27978uq7w0w50d"
+}

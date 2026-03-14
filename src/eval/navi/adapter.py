@@ -22,9 +22,21 @@ from llm.model.models import Turn as LLMTurn
 # Content models (adjust if your paths differ)
 from eval.navi.models import NaviContentInput, NaviContentOutput
 from llm.model.models import Coordinates
-from eval.navi.fitness import fitness_fnc, critical_fnc
+from eval.navi.fitness import get_fitness_fnc, get_critical_fnc
+from llm.llms import LLMType
 
 import numpy as np
+import wandb
+
+from llm.llms import ModelStatistics
+
+def write_token_usage(save_folder):
+    with open(save_folder + "llm_usage_summary.json", "w") as f:
+        usage_summary = ModelStatistics.complete_statistics()
+        usage_summary["total_tokens"] = ModelStatistics.total_values()
+        json.dump(usage_summary, f, indent=4)
+        if wandb.run is not None:
+            wandb.log(usage_summary)
 
 def get_conversation_metadata(user_profile, the_user, serial=None):
     def conversation_metadata(up):
@@ -261,10 +273,12 @@ def _map_retrieved_to_content_output_list(retrieved_for_turn: Any) -> List[NaviC
         )
     return outs
 
-def evaluate_simout(simout):
+def evaluate_simout(simout, args):
+    fitness_fnc = get_fitness_fnc(llm_type=LLMType(args.judge_llm), weights=[args.weight_clarity, args.weight_request_orientedness], dimension_labels=["Clarity", "Request-Orientedness"], max_score=1)
     fitness = fitness_fnc.eval(simout)
     print("fitness", fitness)
     vector_fitness = np.array(fitness)
+    critical_fnc = get_critical_fnc(fitness_fnc, score_threshold=args.critical_threshold)
     critical = critical_fnc.eval(vector_fitness, simout = simout)
     print("critical", critical)
     result = {
@@ -273,7 +287,6 @@ def evaluate_simout(simout):
     for fitness_name, fitness_score in zip(fitness_fnc.name, fitness):
         result["fitness_scores"][fitness_name] = fitness_score
     result["is_critical"] = critical
-
     return result   
 # -------------------------
 # main converter
@@ -350,13 +363,13 @@ def convert_to_simout(
         conv.assigned_user_id = str(user_id)
 
     other: Dict[str, Any] = {}
-    try:
-        other["metadata"] = get_conversation_metadata(user_profile, the_user, serial)
-    except Exception:
-        other["metadata"] = None
+    # try:
+    #     other["metadata"] = get_conversation_metadata(user_profile, the_user, serial)
+    # except Exception:
+    #     other["metadata"] = None
 
-    other["technology"] = getattr(user_profile, "technology", None)
-    other["test_name"] = getattr(user_profile, "test_name", None)
+    # other["technology"] = getattr(user_profile, "technology", None)
+    # other["test_name"] = getattr(user_profile, "test_name", None)
     other["time_conv"] = time_conv
 
     return MultiTurnSimulationOutput(

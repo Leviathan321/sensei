@@ -1,0 +1,14 @@
+{"time":"2026-03-14T23:32:29.32805118+01:00","level":"INFO","msg":"wandb-core"}
+{"time":"2026-03-14T23:32:29.33177981+01:00","level":"INFO","msg":"stream: starting","core version":"0.25.1"}
+{"time":"2026-03-14T23:32:30.697039793+01:00","level":"INFO","msg":"stream: created new stream","id":"11wovlr3"}
+{"time":"2026-03-14T23:32:30.697200547+01:00","level":"INFO","msg":"handler: started"}
+{"time":"2026-03-14T23:32:30.697407739+01:00","level":"INFO","msg":"stream: started"}
+{"time":"2026-03-14T23:32:30.697461928+01:00","level":"INFO","msg":"sender: started"}
+{"time":"2026-03-14T23:32:30.697431633+01:00","level":"INFO","msg":"writer: started","stream_id":"11wovlr3"}
+{"time":"2026-03-14T23:32:31.857923774+01:00","level":"INFO","msg":"filestream: sending request","total_files":1,"console_offset":0,"console_lines":1}
+{"time":"2026-03-14T23:32:32.821970137+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-14T23:32:46.858168894+01:00","level":"INFO","msg":"filestream: sending request","total_files":2,"events_offset":0,"events_lines":2,"console_offset":1,"console_lines":54,"uploaded_len":2}
+{"time":"2026-03-14T23:32:47.362146491+01:00","level":"INFO","msg":"filestream: request sent","status":"200 OK"}
+{"time":"2026-03-14T23:32:51.362367106+01:00","level":"INFO","msg":"stream: closing"}
+{"time":"2026-03-14T23:32:51.424936486+01:00","level":"ERROR","msg":"sender: sendSummary called after exit"}
+{"time":"2026-03-14T23:32:51.425661097+01:00","level":"WARN","msg":"sender: received Exit record more than once, ignoring"}

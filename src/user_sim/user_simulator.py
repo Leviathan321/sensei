@@ -1,5 +1,8 @@
 import logging
 from typing import List
+import sys
+sys.path.insert(0, "../opensbt-llm/venv/lib/python3.11/site-packages")
+sys.path.insert(0, "../opensbt-llm/")
 
 from user_sim.venue_match_extraction import VenueMatchExtraction
 from .data_extraction import DataExtraction
@@ -7,37 +10,68 @@ from .utils.config import errors
 from .utils.utilities import *
 from .data_gathering import *
 from langchain_core.prompts import PromptTemplate
-from langchain_openai import AzureChatOpenAI
+# from langchain_openai import AzureChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
 from .utils.config import errors
 import logging
+from llm.llms import pass_llm
 
 from dotenv import load_dotenv
 load_dotenv()
 # check_keys(["OPENAI_API_KEY"])
 
-client = AzureChatOpenAI(
-    api_key=os.environ["OPENAI_API_KEY"],
-    azure_endpoint=os.environ["AZURE_ENDPOINT"],
-    api_version=os.environ["OPENAI_API_VERSION"],
-    azure_deployment="gpt-4o")
 
 logger = logging.getLogger('Info Logger')
 
 parser = StrOutputParser()
 
+class LLMCallHandler:
+    def __init__(self, user_profile, parser):
+        self.user_profile = user_profile
+        self.parser = parser
+
+        self.user_role_prompt = PromptTemplate(
+            input_variables=["reminder", "history"],
+            template=self.set_role_template(),
+        )
+
+    def set_role_template(self):
+        # NOTE: PromptTemplate expects a template string with placeholders.
+        # Keep placeholders as {reminder} and {history}.
+        history = "History of the conversation so far: {history}"
+        # If you want reminder optional, you can include it as-is:
+        # e.g. "{reminder}\n\n" (so you can pass "" when none)
+        return f"{self.user_profile.role}{'{reminder}'}{history}"
+
+    def run_user_chain_via_pass_llm(self, reminder, history, llm_model):
+        # 1) format prompt exactly like the chain would
+        prompt_str = self.user_role_prompt.format(reminder=reminder, history=history)
+
+        # 2) call your function
+        response_text = pass_llm(prompt_str)
+
+        # 3) apply same parser as before (if needed)
+        parsed = self.parser.parse(response_text)  # adjust if your parser API differs
+        return parsed
+    
 class UserGeneration:
 
-    def __init__(self, user_profile, chatbot, user_id = 1):
+    def __init__(self, user_profile, chatbot, user_id = 1, llm_generator = "gpt-4o"):
 
         self.user_profile = user_profile
         self.chatbot = chatbot
         self.temp = user_profile.temperature
         self.model = user_profile.model
+
+        self.wrapper_pass_llm = LLMCallHandler(user_profile, parser)
         # self.user_llm = AzureChatOpenAI(model=self.model, 
         #                                 temperature=self.temp, client=client)
 
-        self.user_llm = client
+        # self.user_llm = AzureChatOpenAI(
+        #                 api_key=os.environ["OPENAI_API_KEY"],
+        #                 azure_endpoint=os.environ["AZURE_ENDPOINT"],
+        #                 api_version=os.environ["OPENAI_API_VERSION"],
+        #                 azure_deployment=llm_generator)
         
         self.conversation_history = {'interaction': []}
         self.ask_about = user_profile.ask_about.prompt()
@@ -84,7 +118,7 @@ class UserGeneration:
         self.repeat_count = 0
         self.loop_count = 0
         self.interaction_count = 0
-        self.user_chain = self.user_role_prompt | self.user_llm | parser
+        # self.user_chain = self.user_role_prompt | self.user_llm | parser
         self.my_context = self.InitialContext()
         self.output_slots = self.__build_slot_dict()
         self.error_report = []
@@ -238,7 +272,7 @@ class UserGeneration:
         # TODO integrate change of mind poi for case it fails
 
         self.my_context.reset_context()
-        logger.info(f'Context list: {self.my_context.context_list}')
+        # logger.info(f'Context list: {self.my_context.context_list}')
         print("**********************")
         if nlp_processor(response, self.chatbot.fallback, 0.6):
             print("REPETITION TRACK")
@@ -321,10 +355,10 @@ class UserGeneration:
         
     def all_preferences_and_info_used(self):
         print("Checking if all preferences and info have been used...")
-        print("len(self.picked_elements_all):", len(self.picked_elements_all))
-        print("len(self.used_elements):", len(self.used_elements))
-        print("len(self.phrases_all):", len(self.phrases_all))
-        print("len(self.extra_phrased_used):", len(self.extra_phrased_used))
+        # print("len(self.picked_elements_all):", len(self.picked_elements_all))
+        # print("len(self.used_elements):", len(self.used_elements))
+        # print("len(self.phrases_all):", len(self.phrases_all))
+        # print("len(self.extra_phrased_used):", len(self.extra_phrased_used))
 
         return len(self.used_elements) + \
                 len(self.extra_phrased_used) == len(self.phrases_all)
@@ -500,7 +534,11 @@ class UserGeneration:
 
         # print("##############\ncontext before user response:", self.my_context.get_context())
 
-        user_response = self.user_chain.invoke({'history': history, 'reminder': self.my_context.get_context()})
+        user_response = self.wrapper_pass_llm.run_user_chain_via_pass_llm(
+            reminder=self.my_context.get_context(),
+            history=history,
+            llm_model="gpt-4o-mini"
+        )
 
         self.update_history("User", user_response)
 
@@ -542,8 +580,13 @@ class UserGeneration:
             self.repetition_track(input_msg)
         
         # print("##############\ncontext before user response:", self.my_context.get_context())
-        user_response = self.user_chain.invoke({'history': history, 'reminder': self.my_context.get_context()})
-        
+
+        user_response = self.wrapper_pass_llm.run_user_chain_via_pass_llm(
+            reminder=self.my_context.get_context(),
+            history=history,
+            llm_model="gpt-4o-mini"
+        )
+
         self.update_history("User", user_response)
 
         self.data_gathering.add_message(self.conversation_history)

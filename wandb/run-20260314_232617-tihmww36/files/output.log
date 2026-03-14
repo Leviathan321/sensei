@@ -1,0 +1,115 @@
+[34m[1mwandb[0m: Detected [openai] in use.
+[0m[34m[1mwandb[0m: Use W&B Weave for improved LLM call tracing. Weave is installed but not imported. Add `import weave` to the top of your script.
+[0m[34m[1mwandb[0m: For more information, check out the docs at: https://weave-docs.wandb.ai/
+[0m
+2026-03-14 23:26:23,417 - Info Logger - [32mINFO[0m - [32mLanguage set to English[0m
+[0m2026-03-14 23:26:23,419 - Info Logger - [32mINFO[0m - [32mpoi_type: ['car_repair', 'coffee_shop', 'restaurant', 'supermarket', 'cafe', 'bakery', 'bar', 'hotel', 'cinema', 'gas_station'][0m
+[0m2026-03-14 23:26:23,420 - Info Logger - [32mINFO[0m - [32mpayment_method: ['NO_PREFERENCE', 'CASH', 'CREDIT_CARD'][0m
+[0m2026-03-14 23:26:23,420 - Info Logger - [32mINFO[0m - [32mfood_type: ['no preference', 'german', 'indian', 'italian', 'middle_eastern', 'french', 'chinese', 'japanese', 'thai', 'mexican', 'greek', 'vietnamese', 'turkish', 'american'][0m
+[0m2026-03-14 23:26:23,421 - Info Logger - [32mINFO[0m - [32mrating: [3.5, 4.0, 4.5, 5.0][0m
+[0m2026-03-14 23:26:23,421 - Info Logger - [32mINFO[0m - [32mparking_yes: ['YESS', 'NOO'][0m
+[0mget_phrases:[0m [0m['you are looking for a {{poi_type}}', 'insist that it should have payment method {{payment_method}} preference', 'insist that it should have minimum {{rating}} rating of the place', 'insist that it should have parking nearby: {{parking_yes}}', 'ask for something else related to the poi not asked before e.g. travel distance, or how busy the place is. it should not be a preference'][0m
+[0m2026-03-14 23:26:23,425 - Info Logger - [32mINFO[0m - [32mpoi_type: ['car_repair', 'coffee_shop', 'restaurant', 'supermarket', 'cafe', 'bakery', 'bar', 'hotel', 'cinema', 'gas_station'][0m
+[0m2026-03-14 23:26:23,426 - Info Logger - [32mINFO[0m - [32mpayment_method: ['NO_PREFERENCE', 'CASH', 'CREDIT_CARD'][0m
+[0m2026-03-14 23:26:23,427 - Info Logger - [32mINFO[0m - [32mfood_type: ['no preference', 'german', 'indian', 'italian', 'middle_eastern', 'french', 'chinese', 'japanese', 'thai', 'mexican', 'greek', 'vietnamese', 'turkish', 'american'][0m
+[0m2026-03-14 23:26:23,428 - Info Logger - [32mINFO[0m - [32mrating: [3.5, 4.0, 4.5, 5.0][0m
+[0m2026-03-14 23:26:23,429 - Info Logger - [32mINFO[0m - [32mparking_yes: ['YESS', 'NOO'][0m
+[0mget_phrases:[0m [0m['you are looking for a {{poi_type}}', 'insist that it should have payment method {{payment_method}} preference', 'insist that it should have minimum {{rating}} rating of the place', 'insist that it should have parking nearby: {{parking_yes}}', 'ask for something else related to the poi not asked before e.g. travel distance, or how busy the place is. it should not be a preference'][0m
+[0m2026-03-14 23:26:23,434 - Info Logger - [32mINFO[0m - [32minteraction style count: 1; style(s): ['single question'][0m
+[0mgoal style: [0m [0m['all_answered', True, 6][0m
+[0minteraction styles: [0m [0m[<user_sim.interaction_styles.SingleQuestions object at 0x7f28f35c8b80>][0m
+[0mConvcap limit:[0m [0mNone[0m
+[0mconversation_number (profile): [0m [0m2[0m
+[0mtime budget (seconds): [0m [0m60.0[0m
+[0mElapsed time:[0m [0m0.050152120999882754[0m
+[0mgenerator_llm: gpt-4o-mini[0m
+[0mcalled prompt user[0m
+[0mcalled prompt user[0m
+[0mpicked_elements_all:[0m [0m[{'poi_type': ['cafe']}, {'payment_method': ['NO_PREFERENCE']}, {'rating': [5.0]}, {'parking_yes': ['NOO']}][0m
+[0mpicked_elements_com:[0m [0m[{'poi_type': ['bar']}, {'payment_method': ['NO_PREFERENCE']}, {'rating': [5.0]}, {'parking_yes': ['YESS']}][0m
+[0m##############################[0m
+[0muser_id:[0m [0m0[0m
+[0mself.ask_about:[0m [0mplease, ask about    you are looking for a cafe, insist that it should have payment method NO_PREFERENCE preference, insist that it should have minimum 5.0 rating of the place, insist that it should have parking nearby: NOO or ask for something else related to the poi not asked before e.g. travel distance, or how busy the place is. it should not be a preference[0m
+[0m##############################[0m
+[0minteraction_style_prompt:[0m [0mask only one question for your preference/goal per interaction.Multiple preferences are not allowed in one sentence.[0m
+[0m********************************[0m
+[0mpossible_elements:[0m [0m[{'poi_type': ['cafe']}, {'payment_method': ['NO_PREFERENCE']}, {'rating': [5.0]}, {'parking_yes': ['NOO']}][0m
+[0mused_elements:[0m [0m[][0m
+[0mselected_dict:[0m [0m{'poi_type': ['cafe'], 'rating': [5.0]}[0m
+[0mupdated_variables_per_turn:[0m [0m[{'poi_type': ['cafe'], 'rating': [5.0]}][0m
+[0m**************[0m
+[0mused_ids[0m [0m[0, 2][0m
+[0mask_about_turn_phrases:[0m [0myou are looking for a cafe. insist that it should have minimum 5.0 rating of the place[0m
+[0mDataframe written to ./tmp/gathering_register.csv[0m
+[0m[32mUser:[0m Where’s a cafe nearby with at least a 5.0 rating?[0m
+[0m[91mChatbot:[0m I recommend Swirl Cafe, rated 5.0/5, located at 4610 Cedar Ave. Would you like me to navigate there? Or do you have other preferences?[0m
+[0mDataframe written to ./tmp/gathering_register.csv[0m
+[0mTrue[0m [0mSwirl Cafe[0m [0mcafe[0m
+[0mChecking if all preferences and info have been used...[0m
+[0m**********************[0m
+[0m**********************[0m
+[0mphrases all are:[0m [0m['you are looking for a cafe', 'insist that it should have payment method NO_PREFERENCE preference', 'insist that it should have minimum 5.0 rating of the place', 'insist that it should have parking nearby: NOO', 'ask for something else related to the poi not asked before e.g. travel distance, or how busy the place is. it should not be a preference'][0m
+[0mSimulating phrase without los[0m
+[0mlen(extra_phrased_used):[0m [0m0[0m
+[0mlen(picked_elements_all):[0m [0m4[0m
+[0m[32mUser:[0m How far is Swirl Cafe from my current location?[0m
+[0mGetting response from the chatbot...[0m
+[0m[91mChatbot:[0m I can't determine the distance without your current location. Would you like directions?[0m
+[0m+++++++++++ New turn in the conversation. +++++++++++++[0m
+[0mDataframe written to ./tmp/gathering_register.csv[0m
+[0mTrue[0m [0mSwirl Cafe[0m [0mcafe[0m
+[0mChecking if all preferences and info have been used...[0m
+[0m**********************[0m
+[0m**********************[0m
+[0mphrases all are:[0m [0m['you are looking for a cafe', 'insist that it should have payment method NO_PREFERENCE preference', 'insist that it should have minimum 5.0 rating of the place', 'insist that it should have parking nearby: NOO', 'ask for something else related to the poi not asked before e.g. travel distance, or how busy the place is. it should not be a preference'][0m
+[0mSimulating phrase without los[0m
+[0m[32mUser:[0m I’m in the city center of Philly. How far is it from here?[0m
+[0mGetting response from the chatbot...[0m
+[0m[91mChatbot:[0m I can't calculate the distance without your exact location. Would you like directions?[0m
+[0m+++++++++++ New turn in the conversation. +++++++++++++[0m
+[0mDataframe written to ./tmp/gathering_register.csv[0m
+[0mTrue[0m [0mSwirl Cafe[0m [0mcafe[0m
+[0mChecking if all preferences and info have been used...[0m
+[0m**********************[0m
+[0m**********************[0m
+[0mChecking if all preferences and info have been used...[0m
+[0mNew ask about added[0m
+[0minteraction_style_prompt:[0m [0mask only one question for your preference/goal per interaction.Multiple preferences are not allowed in one sentence.[0m
+[0m********************************[0m
+[0mpossible_elements:[0m [0m[{'poi_type': ['cafe']}, {'payment_method': ['NO_PREFERENCE']}, {'rating': [5.0]}, {'parking_yes': ['NOO']}][0m
+[0mused_elements:[0m [0m[{'poi_type': ['cafe']}, {'rating': [5.0]}][0m
+[0mselected_dict:[0m [0m{'poi_type': ['cafe'], 'payment_method': ['NO_PREFERENCE'], 'parking_yes': ['NOO']}[0m
+[0mupdated_variables_per_turn:[0m [0m[{'poi_type': ['cafe'], 'rating': [5.0]}, {}, {'poi_type': ['cafe'], 'rating': [5.0], 'payment_method': ['NO_PREFERENCE'], 'parking_yes': ['NOO']}][0m
+[0m**************[0m
+[0mused_ids[0m [0m[0, 2, 1, 3][0m
+[0mask_about_turn_phrases:[0m [0myou are looking for a cafe. insist that it should have minimum 5.0 rating of the place. insist that it should have payment method NO_PREFERENCE preference. insist that it should have parking nearby: NOO[0m
+[0m[32mUser:[0m Can you confirm if Swirl Cafe has parking nearby?[0m
+[0mGetting response from the chatbot...[0m
+[0m[91mChatbot:[0m Swirl Cafe does not have parking available nearby. Would you like alternatives?[0m
+[0m+++++++++++ New turn in the conversation. +++++++++++++[0m
+[0mDataframe written to ./tmp/gathering_register.csv[0m
+[0mTrue[0m [0mSwirl Cafe[0m [0mcafe[0m
+[0mChecking if all preferences and info have been used...[0m
+[0mMatch provided. Confirm destination.[0m
+[0m[32mUser:[0m Start navigation.[0m
+[0mGetting response from the chatbot...[0m
+[0m[91mChatbot:[0m Starting navigation to Swirl Cafe at 4610 Cedar Ave.[0m
+[0mConversation has to be ended.[0m
+[0mConversation Time: 84.03692 (s)[0m
+[0mJudge LLM selected:[0m [0mLLMType.GPT_5_MINI[0m
+[0mcounter_validations[0m [0m1[0m
+[0mfitness[0m [0m(2.0, 1.0, 1.0)[0m
+[0mcritical[0m [0mFalse[0m
+[0m2026-03-14 23:27:59,909 - Info Logger - [32mINFO[0m - [32mPreparing attributes for next conversation...[0m
+[0m2026-03-14 23:27:59,912 - Info Logger - [32mINFO[0m - [32mLanguage set to English[0m
+[0m[32mINFO[0m:Info Logger:[32mLanguage set to English[0m
+[0m2026-03-14 23:27:59,913 - Info Logger - [32mINFO[0m - [32minteraction style count: 1; style(s): ['single question'][0m
+[0m[32mINFO[0m:Info Logger:[32minteraction style count: 1; style(s): ['single question'][0m
+[0mElapsed time:[0m [0m96.52065494500039[0m
+[0m[34m[1mwandb[0m: Adding directory to artifact (results/poi-search/poi_search_test_custom/2026-03-14-23-26-23)... [0mDone. 0.0s
+[0mMax time budget reached: elapsed=96.521s >= budget=60.000s[0m
+[0mExecution Time: 96.475723 (s)[0m
+[0m------------------------------[0m
+[0mSaved 1 evaluated conversations to results/poi-search/poi_search_test_custom/2026-03-14-23-26-23/report.json[0m
+[0m
+[0m

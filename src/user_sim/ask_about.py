@@ -286,10 +286,10 @@ class AskAboutClass:
         self.phrases = self.str_list.copy()
         self.picked_elements = []
 
-        print("variable_list:", self.variable_list)
-        print("str_list:", self.str_list)
-        print("combinations:", self.combinations)
-        print("phrases:", self.phrases)
+        # print("variable_list:", self.variable_list)
+        # print("str_list:", self.str_list)
+        # print("combinations:", self.combinations)
+        # print("phrases:", self.phrases)
 
     @staticmethod
     def get_variables(data):
@@ -481,13 +481,13 @@ class AskAboutClass:
                         break
                 else:
                     self.phrases[index] = text
-            print("picked_elements:", self.picked_elements)
+            # print("picked_elements:", self.picked_elements)
 
 
 
     def ask_about_processor(self):
         for generator in self.var_generators:
-            print("generator:", generator)
+            # print("generator:", generator)
             self.replace_variables(generator)
         return self.phrases
 
