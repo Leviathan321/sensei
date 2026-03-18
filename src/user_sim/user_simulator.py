@@ -14,7 +14,8 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from .utils.config import errors
 import logging
-from llm.llms import pass_llm
+from llm.llms import pass_llm, LLMType
+from llm.model.conversation_intents import classify_system_intent_from_text
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -86,6 +87,8 @@ class UserGeneration:
         # Generic 
         self.phrases_per_turn = []
         self.variables_per_turn = []
+        self.intents_user_per_turn = []
+        self.intents_system_per_turn = []
 
         # First POI
         self.phrases_all = user_profile.ask_about.phrases
@@ -311,11 +314,21 @@ class UserGeneration:
 
     def update_history(self, role, message):
         self.conversation_history['interaction'].append({role: message})
+        if role == "Assistant":
+            self.classify_and_append_system_intent()
 
     def get_last_user_input(self):
         utterance = [e['user'] for e in self.conversation_history['interaction'] if 'user' in e][:-1]
         return utterance
     
+    def classify_and_append_system_intent(self):
+        self.intents_system_per_turn.append(classify_system_intent_from_text(
+            user_text=self.conversation_history['interaction'][-2]['User'],
+            system_text=self.conversation_history['interaction'][-1]['Assistant'],
+            llm_type=LLMType.DEEPSEEK_V3_0324
+        ))
+        print("classified system intent:", self.intents_system_per_turn[-1])
+
     def is_last_user_turn_repeated(self) -> bool:
         msgs = [e['user'] for e in self.conversation_history['interaction'] if 'user' in e]
         return len(msgs) > 1 and msgs[-1] == msgs[-2]
@@ -415,6 +428,7 @@ class UserGeneration:
         self.data_gathering.add_message(self.conversation_history)
 
         if self.match_provided() and self.all_preferences_and_info_used():
+            
             print("Match provided. Confirm destination.")
             user_response = "Start navigation."
             
@@ -431,6 +445,8 @@ class UserGeneration:
 
             self.navigation_started = True
 
+            self.intents_user_per_turn.append("confirmation")
+            
             return user_response
         
         elif self.end_conversation(input_msg):
@@ -445,6 +461,7 @@ class UserGeneration:
             #     self.conversation_ended = True # propagate end
             self.conversation_ended = True
             self.variables_per_turn.append({})  # add empty dict for this turn since no new variables were picke
+            self.intents_user_per_turn.append("stop")
 
             return user_response
 
@@ -468,6 +485,8 @@ class UserGeneration:
             self.my_context.add_context(language_context)            
             self.my_context.add_context(ask_repetition)
 
+            self.intents_user_per_turn.append(self.intents_user_per_turn[-1])
+            
             self.variables_per_turn.append(self.variables_per_turn[-1])  # add empty dict for this turn since no new variables were picke
             
         elif self.repetition_track(input_msg) == None:
@@ -486,6 +505,7 @@ class UserGeneration:
                 used_elements=used_elements
             )
             self.applied_com = True
+            self.intents_user_per_turn.append("change_of_mind")
         else:
 
             rand_com = random.random()
@@ -499,6 +519,7 @@ class UserGeneration:
                 used_elements = self.used_elements_com
                 extra_phrased_used = self.extra_phrased_used_com
                 self.applied_com = True
+                self.intents_user_per_turn.append("change_of_mind")
             else:
                 phrases_all = self.phrases_all
                 picked_elements_all = self.picked_elements_all
@@ -515,20 +536,26 @@ class UserGeneration:
                     picked_elements_all=picked_elements_all,
                     used_elements=used_elements
                 )
+                self.intents_user_per_turn.append("add_preference")
+
             else:
+                print("ARRIVED AT INFO PHRASES")
                 print("phrases all are:", phrases_all)
                 # take the phrase which dont require los
-                print("Simulating phrase without los")
+                print("##### Simulating phrase without los")
                 num_phrases_extra = len(phrases_all) - len(picked_elements_all)
                 
-                if len(extra_phrased_used) < num_phrases_extra:
-                    print("len(extra_phrased_used):", len(extra_phrased_used))
-                    print("len(picked_elements_all):", len(picked_elements_all))
+                print("len(extra_phrased_used):", len(extra_phrased_used))
+                print("len(picked_elements_all):", len(picked_elements_all))
+
+                # if len(extra_phrased_used) < num_phrases_extra:
+                if True:
                     extra_phrase = phrases_all[len(picked_elements_all) + len(extra_phrased_used)]
-                    extra_phrased_used.append(extra_phrase)
+                    # extra_phrased_used.append(extra_phrase)
                     self.my_context.add_context(extra_phrase)
                     self.variables_per_turn.append({})  # add empty dict for this turn since no new variables were picked
                     # self.my_context.add_context(self.user_profile.get_language())
+                    self.intents_user_per_turn.append("ask")
 
         history = self.get_history()
 
@@ -591,4 +618,6 @@ class UserGeneration:
 
         self.data_gathering.add_message(self.conversation_history)
         self.interaction_count += 1
+        self.intents_user_per_turn.append("start")
+        
         return user_response

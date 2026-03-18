@@ -4,7 +4,8 @@ PYTHONPATH=src python src/sensei-chat.py \
     --user examples/profiles/poi-search \
     --personality ./personalities_car/ \
     --save_folder results/poi-search \
-    --generator_llm "gpt-4o-mini" \
+    --generator_llm "DeepSeek-V3-0324" \
     --judge_llm "gpt-5-mini" \
+    --sut_llm "gpt-5-chat" \
     --population_size 2 \
     --max_time "00:01:00"

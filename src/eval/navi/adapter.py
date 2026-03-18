@@ -322,8 +322,17 @@ def convert_to_simout(
     if not isinstance(retrieved_objs_per_turn, list):
         retrieved_objs_per_turn = []
 
+
+    intents_user_per_turn = getattr(the_user, "intents_user_per_turn", [])
+    intents_system_per_turn = getattr(the_user, "intents_system_per_turn", [])
+
+    print("intents_user_per_turn", intents_user_per_turn)
+    print("intents_system_per_turn", intents_system_per_turn)
+
     llm_turns: List[LLMTurn] = []
     for idx, (q, a) in enumerate(paired):
+        print("idx", idx)
+
         vars_turn = variables_per_turn[idx] if idx < len(variables_per_turn) else None
         retrieved_turn = retrieved_objs_per_turn[idx] if idx < len(retrieved_objs_per_turn) else None
 
@@ -340,8 +349,8 @@ def convert_to_simout(
                 content_input=content_input,              # <-- now populated
                 content_output_list=content_output_list,  # <-- now populated
                 raw_output=retrieved_turn,                # optional debug
-                question_intent=None,
-                answer_intent_classified=None,
+                question_intent=intents_user_per_turn[idx],
+                answer_intent_classified=intents_system_per_turn[idx],
                 poi_exists=None,
                 user_intent_influences_fit=None,
             )
@@ -356,6 +365,7 @@ def convert_to_simout(
         style_input=None,
         content_input_values={},
         content_input_used=set(),
+        intents_per_turn=intents_user_per_turn
     )
 
     user_id = getattr(the_user, "user_id", None)

@@ -328,7 +328,7 @@ def build_summary_metadata_from_args(args, execution_time_seconds: float, actual
     }
 
 
-def generate(technology, chatbot, user, personality, save_folder, summary_args, total_start=None):
+def generate(technology, chatbot, user, personality, save_folder, summary_args, total_start=None, sut_llm = "gpt-4o"):
     """
     Runs conversations for a SINGLE personality file.
 
@@ -390,7 +390,7 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
                     print_user(user_msg)
 
                     start_response_time = timeit.default_timer()
-                    is_ok, response, retrieved_obj = the_chatbot.execute_with_input(user_msg, user_id=the_user.user_id)
+                    is_ok, response, retrieved_obj = the_chatbot.execute_with_input(user_msg, user_id=the_user.user_id, llm_type = sut_llm)
                     the_user.retrieved_objs_per_turn.append(retrieved_obj)
                     end_response_time = timeit.default_timer()
                     response_time.append(timedelta(seconds=end_response_time - start_response_time).total_seconds())
@@ -415,7 +415,9 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
 
                 print("Getting response from the chatbot...")
                 start_response_time = timeit.default_timer()
-                is_ok, response, retrieved_obj = the_chatbot.execute_with_input(user_msg, user_id=the_user.user_id)
+                is_ok, response, retrieved_obj = the_chatbot.execute_with_input(user_msg, 
+                                                                                user_id=the_user.user_id,
+                                                                                llm_type=sut_llm)
                 the_user.retrieved_objs_per_turn.append(retrieved_obj)
                 end_response_time = timeit.default_timer()
 
@@ -546,6 +548,8 @@ def build_arg_parser() -> ArgumentParser:
                         help='Generator LLM name/id used in problem_name')
     parser.add_argument('--judge_llm', dest='judge_llm', type=str, required=True,
                         help='Judge LLM name/id used in problem_name')
+    parser.add_argument('--sut_llm', dest='sut_llm', default="gpt-4o",
+                        help='SUT LLM name/id used in problem_name')
 
     parser.add_argument("--no_wandb", action="store_true", help="Disable Weights & Biases logging.")
     parser.add_argument("--wandb_project", type=str, default="NaviYelp", help="Weights & Biases project name.")
@@ -624,7 +628,8 @@ if __name__ == '__main__':
                 personality_file,
                 args.save_folder,
                 summary_args=args,
-                total_start=total_start_global,  # <-- shared clock => GLOBAL max_time across personalities
+                total_start=total_start_global,
+                sut_llm = args.sut_llm  # <-- shared clock => GLOBAL max_time across personalities
             )
         finally:
             wandb.finish()
