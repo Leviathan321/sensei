@@ -29,6 +29,9 @@ do
       --sut_llm "gpt-5-chat" \
       --population_size 4 \
       --max_time "00:01:00" \
+      --weight_request_orientedness 0.65 \
+      --weight_clarity 0.35 \
+      --critical_threshold 0.65 \
       --seed ${SEED} \
       2>&1 | tee "${RUN_DIR}/run.log"
 
