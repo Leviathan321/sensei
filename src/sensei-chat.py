@@ -25,7 +25,7 @@ from user_sim.role_structure import *
 from user_sim.user_simulator import UserGeneration
 from user_sim.utils.show_logs import *
 from user_sim.utils.utilities import *
-
+from llm.llms import ModelStatistics
 from eval.navi.adapter import convert_to_simout, evaluate_simout, save_simout, write_token_usage
 
 
@@ -367,17 +367,19 @@ def build_summary_metadata_from_args(args, execution_time_seconds: float, actual
         "judge_llm": args.judge_llm,
         "max_time": args.max_time,
         "personality": getattr(args, "_resolved_personality_file", None),
-        "personality_name": getattr(args, "_resolved_personality_name", None),
+        "personality_name": getattr(args, "_resolved_personality_name", None)
     }
 
 
-def generate(technology, chatbot, user, personality, save_folder, summary_args, total_start=None, sut_llm="gpt-4o"):
+def generate(technology, chatbot, user, personality, save_folder, summary_args, total_start=None, sut_llm="gpt-5-chat", generator_llm="gpt-4o"):
     """
     Runs conversations for a SINGLE personality file.
 
     Important: max_time is GLOBAL across personalities if total_start is provided (same timer reference).
     """
     set_global_seed(summary_args.seed)
+
+    print("selected sut llm:", sut_llm)
 
     max_time_seconds = parse_max_time(summary_args.max_time)
     if total_start is None:
@@ -484,7 +486,8 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
                         user_msg = the_user.open_conversation()
                 else:
                     # IMPORTANT: old method name
-                    user_msg = the_user.get_response(response)
+                    user_msg = the_user.get_response(response,
+                                    llm_type=generator_llm)
 
                 if user_msg == "exit":
                     break
@@ -593,8 +596,8 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
             f,
             ensure_ascii=False,
             indent=2,
-        )
-
+    )
+    
     try:
         artifact = wandb.Artifact("results_folder", "output")
         artifact.add_dir(path_folder)
@@ -650,7 +653,7 @@ def build_arg_parser() -> ArgumentParser:
         type=float,
         default=0.5,
         help="Weight for request-orientedness metric",
-    )
+    )   
     parser.add_argument(
         "--max_time",
         dest="max_time",
@@ -658,7 +661,7 @@ def build_arg_parser() -> ArgumentParser:
         default="None",
         help='GLOBAL time budget for the whole run (across personalities) in "hh:mm:ss", or "None"',
     )
-    parser.add_argument("--critical_threshold", dest="critical_threshold", type=float, default=0.7)
+    parser.add_argument("--critical_threshold", dest="critical_threshold", type=float, default=0.65)
 
     parser.add_argument("--generator_llm", dest="generator_llm", type=str, required=True, help="Generator LLM name/id used in problem_name")
     parser.add_argument("--judge_llm", dest="judge_llm", type=str, required=True, help="Judge LLM name/id used in problem_name")
@@ -712,7 +715,7 @@ if __name__ == "__main__":
             judge_llm=args.judge_llm,
             seed=args.seed,
             max_time=args.max_time,
-            personality_name=personality_name,
+            personality_name=personality_name
         )
 
         tags = [f"{k}:{v}" for k, v in vars(args).items() if not k.startswith("_")]
@@ -743,6 +746,7 @@ if __name__ == "__main__":
                 summary_args=args,
                 total_start=total_start_global,
                 sut_llm=args.sut_llm,  # <-- shared clock => GLOBAL max_time across personalities
+                generator_llm=args.generator_llm,
             )
         finally:
             wandb.finish()

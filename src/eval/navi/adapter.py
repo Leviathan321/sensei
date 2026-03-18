@@ -27,11 +27,12 @@ from llm.llms import LLMType
 
 import numpy as np
 import wandb
+import os
 
 from llm.llms import ModelStatistics
 
 def write_token_usage(save_folder):
-    with open(save_folder + "llm_usage_summary.json", "w") as f:
+    with open(save_folder + os.sep + "llm_usage_summary.json", "w") as f:
         usage_summary = ModelStatistics.complete_statistics()
         usage_summary["total_tokens"] = ModelStatistics.total_values()
         json.dump(usage_summary, f, indent=4)

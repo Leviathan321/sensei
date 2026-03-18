@@ -1,11 +1,35 @@
-PYTHONPATH=src python src/sensei-chat.py \
-    --technology convnavi \
-    --chatbot http://127.0.0.1:8000/query \
-    --user examples/profiles/poi-search \
-    --personality ./personalities_car/ \
-    --save_folder results/poi-search \
-    --generator_llm "DeepSeek-V3-0324" \
-    --judge_llm "gpt-5-mini" \
-    --sut_llm "gpt-5-chat" \
-    --population_size 2 \
-    --max_time "00:01:00"
+#!/bin/bash
+
+# Ensure unbuffered Python output
+export PYTHONUNBUFFERED=1
+
+# Timestamp for this batch
+TIMESTAMP=$(date +"%d-%m-%Y")
+
+BASE_DIR="results/poi-search/${TIMESTAMP}"
+mkdir -p "${BASE_DIR}"
+
+echo "Storing all runs in: ${BASE_DIR}"
+
+for SEED in 1 2 3 4 5 6
+do
+  RUN_DIR="${BASE_DIR}/seed_${SEED}"
+  mkdir -p "${RUN_DIR}"
+
+  echo "Running seed ${SEED}"
+
+  PYTHONPATH=src stdbuf -oL -eL python src/sensei-chat.py \
+      --technology convnavi \
+      --chatbot http://127.0.0.1:8000/query \
+      --user examples/profiles/poi-search \
+      --personality ./personalities_car/ \
+      --save_folder "${RUN_DIR}" \
+      --generator_llm "DeepSeek-V3-0324" \
+      --judge_llm "gpt-5-mini" \
+      --sut_llm "gpt-5-chat" \
+      --population_size 4 \
+      --max_time "00:01:00" \
+      --seed ${SEED} \
+      2>&1 | tee "${RUN_DIR}/run.log"
+
+done

@@ -40,7 +40,7 @@ class LLMCallHandler:
 
     def invoke(self, reminder: str, history: str, llm_type: str) -> str:
         prompt_str = self.user_role_prompt.format(reminder=reminder, history=history)
-        response_text = pass_llm(prompt_str, llm_type)
+        response_text = pass_llm(prompt_str, llm_type = llm_type)
         return self.parser.parse(response_text)
 
 
@@ -196,7 +196,7 @@ class UserGeneration:
 
         return True
 
-    def get_response(self, input_msg, llm_type=LLMType.GPT_4O_MINI):
+    def get_response(self, input_msg, llm_type="gpt-4o-mini"):
         self.update_history("Assistant", input_msg)
         self.data_gathering.add_message(self.conversation_history)
 
@@ -210,7 +210,7 @@ class UserGeneration:
         user_response = self.wrapper_pass_llm.invoke(
             reminder=self.my_context.get_context(),
             history=history,
-            llm_type=llm_type
+            llm_type=LLMType.GPT_4O
         )
 
         self.update_history("User", user_response)
@@ -246,7 +246,7 @@ class UserGeneration:
         user_response = self.wrapper_pass_llm.invoke(
             reminder=self.my_context.get_context(),
             history=history,
-            llm_type=LLMType.GPT_4O_MINI
+            llm_type=LLMType.DEEPSEEK_V3_0324
         )
 
         self.update_history("User", user_response)
