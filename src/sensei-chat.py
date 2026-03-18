@@ -4,7 +4,7 @@ import timeit
 import json
 from copy import deepcopy
 from argparse import ArgumentParser
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 import os
 from pathlib import Path
@@ -42,6 +42,49 @@ def set_global_seed(seed: int) -> None:
         np.random.seed(seed)
     except Exception:
         pass
+
+
+def _execute_with_input_compat(the_chatbot, user_msg, user_id=None, llm_type=None):
+    """
+    Compatibility wrapper:
+      - Some connectors return (is_ok, response)
+      - Newer ones return (is_ok, response, retrieved_obj)
+
+    Returns: (is_ok, response, retrieved_obj_or_None)
+    """
+    out = the_chatbot.execute_with_input(user_msg, user_id=user_id, llm_type=llm_type)
+
+    if isinstance(out, tuple) and len(out) == 3:
+        is_ok, response, retrieved_obj = out
+        return is_ok, response, retrieved_obj
+    if isinstance(out, tuple) and len(out) == 2:
+        is_ok, response = out
+        return is_ok, response, None
+
+    raise TypeError(
+        f"execute_with_input returned unexpected value: {type(out)} {out!r}. "
+        "Expected tuple (is_ok, response) or (is_ok, response, retrieved_obj)."
+    )
+
+
+def _execute_starter_chatbot_compat(the_chatbot):
+    """
+    Compatibility wrapper for optional execute_starter_chatbot().
+    Returns: (is_ok, response, retrieved_obj_or_None)
+    """
+    out = the_chatbot.execute_starter_chatbot()
+
+    if isinstance(out, tuple) and len(out) == 3:
+        is_ok, response, retrieved_obj = out
+        return is_ok, response, retrieved_obj
+    if isinstance(out, tuple) and len(out) == 2:
+        is_ok, response = out
+        return is_ok, response, None
+
+    raise TypeError(
+        f"execute_starter_chatbot returned unexpected value: {type(out)} {out!r}. "
+        "Expected tuple (is_ok, response) or (is_ok, response, retrieved_obj)."
+    )
 
 
 def generate_problem_name(
@@ -328,7 +371,7 @@ def build_summary_metadata_from_args(args, execution_time_seconds: float, actual
     }
 
 
-def generate(technology, chatbot, user, personality, save_folder, summary_args, total_start=None, sut_llm = "gpt-4o"):
+def generate(technology, chatbot, user, personality, save_folder, summary_args, total_start=None, sut_llm="gpt-4o"):
     """
     Runs conversations for a SINGLE personality file.
 
@@ -378,68 +421,103 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
             the_chatbot = build_chatbot(technology, chatbot)
             the_chatbot.fallback = user_profile.fallback
 
-            the_user = UserGeneration(user_profile, the_chatbot, user_id=i, llm_generator=summary_args.generator_llm)
+            # IMPORTANT: no intent-era llm_generator arg
+            the_user = UserGeneration(user_profile, the_chatbot, user_id=i)
+
             bot_starter = user_profile.is_starter
             response_time = []
 
             start_time_conversation = timeit.default_timer()
-            response = ''
+            response = ""
+
             while True:
                 if not bot_starter:
+                    # user starts
                     user_msg = the_user.open_conversation()
                     print_user(user_msg)
 
                     start_response_time = timeit.default_timer()
-                    is_ok, response, retrieved_obj = the_chatbot.execute_with_input(user_msg, user_id=the_user.user_id, llm_type = sut_llm)
-                    the_user.retrieved_objs_per_turn.append(retrieved_obj)
+                    is_ok, response, retrieved_obj = _execute_with_input_compat(
+                        the_chatbot,
+                        user_msg,
+                        user_id=getattr(the_user, "user_id", None),
+                        llm_type=sut_llm,
+                    )
+                    if retrieved_obj is not None and hasattr(the_user, "retrieved_objs_per_turn"):
+                        the_user.retrieved_objs_per_turn.append(retrieved_obj)
                     end_response_time = timeit.default_timer()
                     response_time.append(timedelta(seconds=end_response_time - start_response_time).total_seconds())
 
                     if not is_ok:
-                        if response is not None:
-                            the_user.update_history("Assistant", "Error: " + response)
-                        else:
-                            the_user.update_history("Assistant", "Error: The server did not respond.")
+                        the_user.update_history(
+                            "Assistant",
+                            ("Error: " + response) if response is not None else "Error: The server did not respond.",
+                        )
                         break
                     else:
-                        if response is None:
-                            the_user.update_history("Assistant", "Error: The server did not respond.")
-                        else:
-                            the_user.update_history("Assistant", response)
+                        the_user.update_history(
+                            "Assistant",
+                            response if response is not None else "Error: The server did not respond.",
+                        )
+
                     print_chatbot(response)
                     bot_starter = True
                     continue
+
+                # chatbot starts (old behavior) if supported
+                if bot_starter and not the_user.conversation_history["interaction"]:
+                    if hasattr(the_chatbot, "execute_starter_chatbot"):
+                        is_ok, response, retrieved_obj = _execute_starter_chatbot_compat(the_chatbot)
+                        if retrieved_obj is not None and hasattr(the_user, "retrieved_objs_per_turn"):
+                            the_user.retrieved_objs_per_turn.append(retrieved_obj)
+
+                        if not is_ok:
+                            the_user.update_history(
+                                "Assistant",
+                                ("Error: " + response) if response is not None else "Error: The server did not respond.",
+                            )
+                            break
+
+                        print_chatbot(response)
+                        user_msg = the_user.open_conversation(response)
+                    else:
+                        user_msg = the_user.open_conversation()
                 else:
-                    user_msg = the_user.get_user_response(response)
-                    print_user(user_msg)
+                    # IMPORTANT: old method name
+                    user_msg = the_user.get_response(response)
+
+                if user_msg == "exit":
+                    break
+
+                print_user(user_msg)
 
                 print("Getting response from the chatbot...")
                 start_response_time = timeit.default_timer()
-                is_ok, response, retrieved_obj = the_chatbot.execute_with_input(user_msg, 
-                                                                                user_id=the_user.user_id,
-                                                                                llm_type=sut_llm)
-                the_user.retrieved_objs_per_turn.append(retrieved_obj)
+                is_ok, response, retrieved_obj = _execute_with_input_compat(
+                    the_chatbot,
+                    user_msg,
+                    user_id=getattr(the_user, "user_id", None),
+                    llm_type=sut_llm,
+                )
+                if retrieved_obj is not None and hasattr(the_user, "retrieved_objs_per_turn"):
+                    the_user.retrieved_objs_per_turn.append(retrieved_obj)
                 end_response_time = timeit.default_timer()
 
-                time_sec = timedelta(seconds=end_response_time - start_response_time).total_seconds()
-                response_time.append(time_sec)
+                response_time.append(timedelta(seconds=end_response_time - start_response_time).total_seconds())
 
-                if response == 'timeout':
+                if response == "timeout":
                     break
 
                 print_chatbot(response)
 
                 if not is_ok:
-                    if response is not None:
-                        the_user.update_history("Assistant", "Error: " + response)
-                    else:
-                        the_user.update_history("Assistant", "Error: The server did not respond.")
+                    the_user.update_history(
+                        "Assistant",
+                        ("Error: " + response) if response is not None else "Error: The server did not respond.",
+                    )
                     break
                 else:
                     the_user.update_history("Assistant", response)
-
-                if the_user.conversation_ended or the_user.end_conversation(response):
-                    break
 
             end_time_conversation = timeit.default_timer()
             conversation_time = end_time_conversation - start_time_conversation
@@ -461,6 +539,22 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
 
             total_conversations_completed += 1
 
+            ############### ORIGINAL OUTPUT CODE #######
+            end_time_conversation = timeit.default_timer()
+            conversation_time = end_time_conversation - start_time_conversation
+            formatted_time_conv = timedelta(seconds=conversation_time).total_seconds()
+            print(f"Conversation Time: {formatted_time_conv} (s)")
+
+            history = the_user.conversation_history
+            metadata = get_conversation_metadata(user_profile, the_user, serial)
+            dg_dataframe = the_user.data_gathering.gathering_register
+            csv_extraction = the_user.goal_style[1] if the_user.goal_style[0] == 'all_answered' else False
+            answer_validation_data = (dg_dataframe, csv_extraction)
+            save_test_conv(history, metadata, test_name, save_folder, serial,
+                            formatted_time_conv, response_time, answer_validation_data, counter=i)
+
+            ######################
+
             user_profile.reset_attributes()
             i += 1
 
@@ -468,7 +562,7 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
         execution_time = end_time_test - start_time_test
         formatted_time = timedelta(seconds=execution_time).total_seconds()
         print(f"Execution Time: {formatted_time} (s)")
-        print('------------------------------')
+        print("------------------------------")
 
         if max_time_seconds is not None:
             elapsed = timeit.default_timer() - total_start
@@ -487,7 +581,7 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
     summary_metadata = build_summary_metadata_from_args(
         summary_args,
         execution_time_seconds=total_execution_seconds,
-        actual_conversations_completed=total_conversations_completed
+        actual_conversations_completed=total_conversations_completed,
     )
 
     wandb.summary.update(summary_metadata)
@@ -518,38 +612,57 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
 
 
 def build_arg_parser() -> ArgumentParser:
-    parser = ArgumentParser(description='Conversation generator for a chatbot')
+    parser = ArgumentParser(description="Conversation generator for a chatbot")
 
     parser.add_argument(
-        '--technology', required=True,
-        choices=['convnavi', 'rasa', 'taskyto', 'ada-uam', 'millionbot', 'genion', 'lola', 'serviceform', 'kuki', 'julie',
-                 'rivas_catalina', 'saic_malaga'],
-        help='Technology the chatbot is implemented in'
+        "--technology",
+        required=True,
+        choices=[
+            "convnavi",
+            "rasa",
+            "taskyto",
+            "ada-uam",
+            "millionbot",
+            "genion",
+            "lola",
+            "serviceform",
+            "kuki",
+            "julie",
+            "rivas_catalina",
+            "saic_malaga",
+        ],
+        help="Technology the chatbot is implemented in",
     )
-    parser.add_argument('--chatbot', required=True, help='URL where the chatbot is deployed')
-    parser.add_argument('--user', required=True, help='User profile to test the chatbot')
-    parser.add_argument('--personality', required=False, help='Personality file OR folder of personality yaml files')
-    parser.add_argument("--save_folder", default=False, help='Path to store conversation user-chatbot')
+    parser.add_argument("--chatbot", required=True, help="URL where the chatbot is deployed")
+    parser.add_argument("--user", required=True, help="User profile to test the chatbot")
+    parser.add_argument("--personality", required=False, help="Personality file OR folder of personality yaml files")
+    parser.add_argument("--save_folder", default=False, help="Path to store conversation user-chatbot")
 
-    parser.add_argument('--seed', type=int, default=1, help='Random seed used for the run')
-    parser.add_argument('--algorithm', type=str, default="sensei", help='Algorithm name (e.g., rs)')
-    parser.add_argument('--population_size', dest='population_size', type=int, required=True, help='Population size')
-    parser.add_argument('--sut', type=str, default="IPA_YELP", help='System under test (e.g., ipa_yelp)')
+    parser.add_argument("--seed", type=int, default=1, help="Random seed used for the run")
+    parser.add_argument("--algorithm", type=str, default="sensei", help="Algorithm name (e.g., rs)")
+    parser.add_argument("--population_size", dest="population_size", type=int, required=True, help="Population size")
+    parser.add_argument("--sut", type=str, default="IPA_YELP", help="System under test (e.g., ipa_yelp)")
 
-    parser.add_argument('--weight_clarity', dest='weight_clarity', type=float, default=0.5,
-                        help='Weight for clarity metric')
-    parser.add_argument('--weight_request_orientedness', dest='weight_request_orientedness', type=float, default=0.5,
-                        help='Weight for request-orientedness metric')
-    parser.add_argument('--max_time', dest='max_time', type=str, default="None",
-                        help='GLOBAL time budget for the whole run (across personalities) in "hh:mm:ss", or "None"')
-    parser.add_argument('--critical_threshold', dest='critical_threshold', type=float, default=0.7)
+    parser.add_argument("--weight_clarity", dest="weight_clarity", type=float, default=0.5, help="Weight for clarity metric")
+    parser.add_argument(
+        "--weight_request_orientedness",
+        dest="weight_request_orientedness",
+        type=float,
+        default=0.5,
+        help="Weight for request-orientedness metric",
+    )
+    parser.add_argument(
+        "--max_time",
+        dest="max_time",
+        type=str,
+        default="None",
+        help='GLOBAL time budget for the whole run (across personalities) in "hh:mm:ss", or "None"',
+    )
+    parser.add_argument("--critical_threshold", dest="critical_threshold", type=float, default=0.7)
 
-    parser.add_argument('--generator_llm', dest='generator_llm', type=str, required=True,
-                        help='Generator LLM name/id used in problem_name')
-    parser.add_argument('--judge_llm', dest='judge_llm', type=str, required=True,
-                        help='Judge LLM name/id used in problem_name')
-    parser.add_argument('--sut_llm', dest='sut_llm', default="gpt-4o",
-                        help='SUT LLM name/id used in problem_name')
+    parser.add_argument("--generator_llm", dest="generator_llm", type=str, required=True, help="Generator LLM name/id used in problem_name")
+    parser.add_argument("--judge_llm", dest="judge_llm", type=str, required=True, help="Judge LLM name/id used in problem_name")
+    parser.add_argument("--sut_llm", dest="sut_llm", default="gpt-4o", help="SUT LLM name/id used in problem_name")
 
     parser.add_argument("--no_wandb", action="store_true", help="Disable Weights & Biases logging.")
     parser.add_argument("--wandb_project", type=str, default="NaviYelp", help="Weights & Biases project name.")
@@ -564,12 +677,12 @@ def build_arg_parser() -> ArgumentParser:
     return parser
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     parser = build_arg_parser()
     args = parser.parse_args()
 
-    logger = create_logger(True, 'Info Logger')
-    logger.info('Logs enabled!')
+    logger = create_logger(True, "Info Logger")
+    logger.info("Logs enabled!")
 
     check_keys(["OPENAI_API_KEY"])
 
@@ -629,7 +742,7 @@ if __name__ == '__main__':
                 args.save_folder,
                 summary_args=args,
                 total_start=total_start_global,
-                sut_llm = args.sut_llm  # <-- shared clock => GLOBAL max_time across personalities
+                sut_llm=args.sut_llm,  # <-- shared clock => GLOBAL max_time across personalities
             )
         finally:
             wandb.finish()

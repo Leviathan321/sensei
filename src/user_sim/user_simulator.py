@@ -4,32 +4,29 @@ import sys
 sys.path.insert(0, "../opensbt-llm/venv/lib/python3.11/site-packages")
 sys.path.insert(0, "../opensbt-llm/")
 
-from user_sim.venue_match_extraction import VenueMatchExtraction
 from .data_extraction import DataExtraction
 from .utils.config import errors
 from .utils.utilities import *
 from .data_gathering import *
 from langchain_core.prompts import PromptTemplate
-# from langchain_openai import AzureChatOpenAI
 from langchain_core.output_parsers import StrOutputParser
-from .utils.config import errors
-import logging
+
 from llm.llms import pass_llm, LLMType
-from llm.model.conversation_intents import classify_system_intent_from_text
-
-from dotenv import load_dotenv
-load_dotenv()
-# check_keys(["OPENAI_API_KEY"])
-
-
-logger = logging.getLogger('Info Logger')
 
 parser = StrOutputParser()
+logger = logging.getLogger("Info Logger")
+
 
 class LLMCallHandler:
-    def __init__(self, user_profile, parser):
+    """
+    OpenSBT-style LLM calling:
+      - builds the same prompt as PromptTemplate would
+      - calls pass_llm(prompt)
+      - parses with StrOutputParser
+    """
+    def __init__(self, user_profile, parser_obj):
         self.user_profile = user_profile
-        self.parser = parser
+        self.parser = parser_obj
 
         self.user_role_prompt = PromptTemplate(
             input_variables=["reminder", "history"],
@@ -37,191 +34,49 @@ class LLMCallHandler:
         )
 
     def set_role_template(self):
-        # NOTE: PromptTemplate expects a template string with placeholders.
-        # Keep placeholders as {reminder} and {history}.
+        reminder = "{reminder}"
         history = "History of the conversation so far: {history}"
-        # If you want reminder optional, you can include it as-is:
-        # e.g. "{reminder}\n\n" (so you can pass "" when none)
-        return f"{self.user_profile.role}{'{reminder}'}{history}"
+        return self.user_profile.role + reminder + history
 
-    def run_user_chain_via_pass_llm(self, reminder, history, llm_model):
-        # 1) format prompt exactly like the chain would
+    def invoke(self, reminder: str, history: str, llm_type: str) -> str:
         prompt_str = self.user_role_prompt.format(reminder=reminder, history=history)
+        response_text = pass_llm(prompt_str, llm_type)
+        return self.parser.parse(response_text)
 
-        # 2) call your function
-        response_text = pass_llm(prompt_str)
 
-        # 3) apply same parser as before (if needed)
-        parsed = self.parser.parse(response_text)  # adjust if your parser API differs
-        return parsed
-    
 class UserGeneration:
-
-    def __init__(self, user_profile, chatbot, user_id = 1, llm_generator = "gpt-4o"):
-
+    def __init__(self, user_profile, chatbot, user_id=1):
         self.user_profile = user_profile
         self.chatbot = chatbot
-        self.temp = user_profile.temperature
-        self.model = user_profile.model
 
-        self.wrapper_pass_llm = LLMCallHandler(user_profile, parser)
-        # self.user_llm = AzureChatOpenAI(model=self.model, 
-        #                                 temperature=self.temp, client=client)
-
-        # self.user_llm = AzureChatOpenAI(
-        #                 api_key=os.environ["OPENAI_API_KEY"],
-        #                 azure_endpoint=os.environ["AZURE_ENDPOINT"],
-        #                 api_version=os.environ["OPENAI_API_VERSION"],
-        #                 azure_deployment=llm_generator)
-        
-        self.conversation_history = {'interaction': []}
+        self.conversation_history = {"interaction": []}
         self.ask_about = user_profile.ask_about.prompt()
-        self.ask_about_com = user_profile.ask_about_com.prompt()
-
-        # print("##################")
-        # print("ask_about:", self.ask_about)      
-        # print("ask_about_com:", self.ask_about_com)      
-        # print("##################")
-        # # NEW - for state tracking
-
-        # Generic 
-        self.phrases_per_turn = []
-        self.variables_per_turn = []
-        self.intents_user_per_turn = []
-        self.intents_system_per_turn = []
-
-        # First POI
-        self.phrases_all = user_profile.ask_about.phrases
-        self.picked_elements_all = user_profile.ask_about.picked_elements
-        self.extra_phrased_used = []
-        self.used_elements = []
-
-        print("picked_elements_all:", self.picked_elements_all)
-        
-        # COM
-        self.phrases_all_com = user_profile.ask_about_com.phrases
-        self.picked_elements_all_com = user_profile.ask_about_com.picked_elements
-        self.extra_phrased_used_com= []
-        self.used_elements_com = []
-
-        print("picked_elements_com:", self.picked_elements_all_com)
-
-        print("##############################")
-        print("user_id:", user_id)
-        print("self.ask_about:", self.ask_about)
-        print("##############################")
-
         self.data_gathering = ChatbotAssistant(user_profile.ask_about.phrases)
-        self.user_role_prompt = PromptTemplate(
-            input_variables=["reminder", "history"],
-            template=self.set_role_template()
-        )
+
         self.goal_style = user_profile.goal_style
         self.test_name = user_profile.test_name
+
         self.repeat_count = 0
         self.loop_count = 0
         self.interaction_count = 0
-        # self.user_chain = self.user_role_prompt | self.user_llm | parser
+
         self.my_context = self.InitialContext()
         self.output_slots = self.__build_slot_dict()
         self.error_report = []
+
+        # OpenSBT new llm call path (no intents)
+        self.wrapper_pass_llm = LLMCallHandler(user_profile, parser)
+
+        # --- keep your init vars (optional, no intent logic) ---
         self.user_id = user_id
-
-        self.conversation_ended = False
-
-        self.applied_com = False
-
+        self.phrases_per_turn = []
+        self.variables_per_turn = []
         self.retrieved_objs_per_turn = []
+        # ------------------------------------------------------
 
-    def get_phrases_for_turn(self,
-                             picked_elements_all, 
-                             phrases_all,
-                             used_elements):
-        used_ids = self.pick_elements_for_turn(
-            selection_probability=0.5,
-            picked_elements_all=picked_elements_all,
-            used_elements=used_elements,
-        )
-        print("used_ids", used_ids)
-        # print("phrases_all", phrases_all)
-        phrases_turn = ". ".join([phrases_all[i] for i in used_ids])
-        return phrases_turn
-        
-    def pick_elements_for_turn(
-        self,
-        picked_elements_all,
-        used_elements,
-        selection_probability: float = 0.5
-    ):
-        print("********************************")
-        print("possible_elements:", picked_elements_all)
-        print("used_elements:", used_elements)
-
-        if not picked_elements_all:
-            return {}, used_elements, []
-        
-        selected_dict = {}
-        updated_used = used_elements
-        used_ids = []
-
-        # assign internal IDs to possible elements
-        element_id_map = {i: elem for i, elem in enumerate(picked_elements_all)}
-
-        # mark already used elements
-        used_index_set = set()
-        for ue in updated_used:
-            for idx, pe in element_id_map.items():
-                if ue == pe:
-                    used_index_set.add(idx)
-                    used_ids.append(idx)
-                    break
-
-        # always include the first element if not already used
-        if 0 not in used_index_set:
-            updated_used.append(picked_elements_all[0])
-            used_index_set.add(0)
-            used_ids.append(0)
-
-        selected_dict.update(picked_elements_all[0])
-
-        # randomly select remaining elements
-        additional_selected = False
-        for idx, element in element_id_map.items():
-            if idx == 0 or idx in used_index_set:
-                continue
-            if random.random() < selection_probability:
-                updated_used.append(element)
-                used_ids.append(idx)
-                selected_dict.update(element)
-                additional_selected = True
-
-        # ensure at least one additional element is selected
-        if not additional_selected:
-            available_indices = [idx for idx in element_id_map.keys() 
-                            if idx != 0 and idx not in used_index_set]
-            if available_indices:
-                chosen_idx = random.choice(available_indices)
-                element = element_id_map[chosen_idx]
-                updated_used.append(element)
-                used_ids.append(chosen_idx)
-                selected_dict.update(element)
-
-        used_elements = updated_used
-
-        def flatten_turn(turn):
-            return {k: v for d in turn for k, v in d.items()}
-
-        self.variables_per_turn.append(flatten_turn(used_elements.copy()))
-
-        print("selected_dict:", selected_dict)
-        print("updated_variables_per_turn:", self.variables_per_turn)
-        print("**************")
-        return used_ids
-    
     def __build_slot_dict(self):
         slot_dict = {}
-        output_list = self.user_profile.output
-        for output in output_list:
+        for output in self.user_profile.output:
             var_name = list(output.keys())[0]
             slot_dict[var_name] = None
         return slot_dict
@@ -232,16 +87,14 @@ class UserGeneration:
             self.context_list = []
 
         def initiate_context(self, context):
-
-            default_context = ["never recreate a whole conversation, just act as you're a user or client",
-                               "never indicate that you are the user, like 'user: bla bla'",
-                               'Sometimes, interact with what the assistant just said.',
-                               'Never act as the assistant, always behave as a user.',
-                               "Don't end the conversation until you've asked everything you need.",
-                               "you're testing a chatbot, so there are random values or irrational things "
-                               "in your requests"
-                               ]
-
+            default_context = [
+                "never recreate a whole conversation, just act as you're a user or client",
+                "never indicate that you are the user, like 'user: bla bla'",
+                "Sometimes, interact with what the assistant just said.",
+                "Never act as the assistant, always behave as a user.",
+                "Don't end the conversation until you've asked everything you need.",
+                "you're testing a chatbot, so there are random values or irrational things in your requests",
+            ]
             if isinstance(context, list):
                 self.original_context = context.copy() + default_context.copy()
                 self.context_list = context.copy() + default_context.copy()
@@ -249,353 +102,137 @@ class UserGeneration:
                 self.original_context = [context] + default_context
                 self.context_list = [context] + default_context
 
-            # print("context_list after initiate_context:", self.context_list)
-            # input()
         def add_context(self, new_context):
             if isinstance(new_context, list):
-                for cont in new_context:
-                    self.context_list.append(cont)
+                self.context_list.extend(new_context)
             else:
                 self.context_list.append(new_context)
-                # TODO: add exception to force the user to initiate the context
 
         def get_context(self):
-            return '. '.join(self.context_list)
+            return ". ".join(self.context_list)
 
         def reset_context(self):
             self.context_list = self.original_context.copy()
 
-    def set_role_template(self):
-        reminder = """{reminder}"""
-        history = """History of the conversation so far: {history}"""
-        role_prompt = self.user_profile.role + reminder + history
-        return role_prompt
-
     def repetition_track(self, response, reps=3):
-        # TODO integrate change of mind poi for case it fails
-
         self.my_context.reset_context()
-        # logger.info(f'Context list: {self.my_context.context_list}')
-        print("**********************")
+        logger.info(f"Context list: {self.my_context.context_list}")
+
         if nlp_processor(response, self.chatbot.fallback, 0.6):
-            print("REPETITION TRACK")
             self.repeat_count += 1
             self.loop_count += 1
             logger.info(f"is fallback. Repeat_count: {self.repeat_count}. Loop count: {self.loop_count}")
 
-            # if self.repeat_count >= reps:
-            #     self.repeat_count = 0
-            #     change_topic = """
-            #                    Since the assistant is not understanding what you're saying, change the 
-            #                    topic to other things to ask about without starting a new conversation
-            #                    """
-
-            #     self.my_context.add_context(change_topic)
-            if self.repeat_count > 2:
-                # COM required
-                return None
-            return True
+            if self.repeat_count >= reps:
+                self.repeat_count = 0
+                change_topic = """
+                               Since the assistant is not understanding what you're saying, change the 
+                               topic to other things to ask about without starting a new conversation
+                               """
+                self.my_context.add_context(change_topic)
+            else:
+                ask_repetition = """
+                                If the assistant asks you to repeat the question, repeat the last question the user 
+                                said but rephrase it.
+                                """
+                self.my_context.add_context(ask_repetition)
         else:
             self.repeat_count = 0
             self.loop_count = 0
-            return False
 
     @staticmethod
     def conversation_ending(response):
-        return nlp_processor(response, "Something wrong happened.", 0.8)
+        return nlp_processor(response, "src/testing/user_sim/end_conversation_patterns.yml", 0.5)
 
     def get_history(self):
-
         lines = []
-        for inp in self.conversation_history['interaction']:
+        for inp in self.conversation_history["interaction"]:
             for k, v in inp.items():
                 lines.append(f"{k}: {v}")
         return "\n".join(lines)
 
     def update_history(self, role, message):
-        self.conversation_history['interaction'].append({role: message})
-        if role == "Assistant":
-            self.classify_and_append_system_intent()
+        self.conversation_history["interaction"].append({role: message})
 
-    def get_last_user_input(self):
-        utterance = [e['user'] for e in self.conversation_history['interaction'] if 'user' in e][:-1]
-        return utterance
-    
-    def classify_and_append_system_intent(self):
-        self.intents_system_per_turn.append(classify_system_intent_from_text(
-            user_text=self.conversation_history['interaction'][-2]['User'],
-            system_text=self.conversation_history['interaction'][-1]['Assistant'],
-            llm_type=LLMType.DEEPSEEK_V3_0324
-        ))
-        print("classified system intent:", self.intents_system_per_turn[-1])
-
-    def is_last_user_turn_repeated(self) -> bool:
-        msgs = [e['user'] for e in self.conversation_history['interaction'] if 'user' in e]
-        return len(msgs) > 1 and msgs[-1] == msgs[-2]
-    
     def end_conversation(self, input_msg):
-        # print("gathering register:\n", self.data_gathering.gathering_register)  # Debugging
+        if self.goal_style[0] in ("steps", "random steps"):
+            return self.interaction_count >= self.goal_style[1]
 
-        if self.goal_style[0] == 'steps' or self.goal_style[0] == 'random steps':
-            if self.interaction_count >= self.goal_style[1]:
-                logger.info('is end')
-                return True
-
-        elif self.conversation_ending(input_msg) or self.loop_count >= 9:
-            errors.append({1000: 'Exceeded loop Limit'})
-            logger.warning('Loop count surpassed 9 interactions. Ending conversation.')
+        if self.conversation_ending(input_msg) or self.loop_count >= 9:
+            errors.append({1000: "Exceeded loop Limit"})
+            logger.warning("Loop count surpassed 9 interactions. Ending conversation.")
             return True
 
-        elif 'all_answered' in self.goal_style[0] or 'default' in self.goal_style[0]:
-            can_be_stopped = False
-            # print("gathering register inside end_conversation:\n", self.data_gathering.gathering_register)  # Debugging
-            # if self.data_gathering.gathering_register["verification"].all() \
-            #     and self.all_data_collected():
-            #     print("All data collected and verified. Ending conversation.")
-            #     can_be_stopped = True
-            # if self.venue_match_extraction():
-            #     print("Match provided. Ending conversation.")
-            #     can_be_stopped = True
-            if self.goal_style[2] <= self.interaction_count:
-                can_be_stopped = True
-                print("Limit of interactions OR all data collected condition met. Ending conversation.")
-                logger.info(f'limit amount of interactions achieved: {self.goal_style[2]}. Ending conversation.')
-            else:
-                can_be_stopped = False
-            return can_be_stopped
-        else:
+        if "all_answered" in self.goal_style[0] or "default" in self.goal_style[0]:
+            if (
+                (self.data_gathering.gathering_register["verification"].all() and self.all_data_collected())
+                or self.goal_style[2] <= self.interaction_count
+            ):
+                logger.info(f"limit amount of interactions achieved: {self.goal_style[2]}. Ending conversation.")
+                return True
             return False
-        
-    def all_preferences_and_info_used(self):
-        print("Checking if all preferences and info have been used...")
-        # print("len(self.picked_elements_all):", len(self.picked_elements_all))
-        # print("len(self.used_elements):", len(self.used_elements))
-        # print("len(self.phrases_all):", len(self.phrases_all))
-        # print("len(self.extra_phrased_used):", len(self.extra_phrased_used))
 
-        return len(self.used_elements) + \
-                len(self.extra_phrased_used) == len(self.phrases_all)
+        return False
 
-    def match_provided(self):
-        verifier = VenueMatchExtraction(self.conversation_history)
-        verdict = verifier.detect()
-        print(verdict["match"], verdict["venue_name"], verdict["venue_type"])
-        return verdict["match"]
-    
     def all_data_collected(self):
-        output_list = self.user_profile.output
-        for output in output_list:
+        for output in self.user_profile.output:
             var_name = list(output.keys())[0]
             var_dict = output.get(var_name)
+
             if var_name in self.output_slots and self.output_slots[var_name] is not None:
                 continue
-            my_data_extract = DataExtraction(self.conversation_history,
-                                             var_name,
-                                             var_dict["type"],
-                                             var_dict["description"])
+
+            my_data_extract = DataExtraction(
+                self.conversation_history,
+                var_name,
+                var_dict["type"],
+                var_dict["description"],
+            )
             value = my_data_extract.get_data_extraction()
-            #value = {var_name: "mock"}
             if value[var_name] is None:
                 return False
-            else:
-                self.output_slots[var_name] = value[var_name]
-        print("######## ALL DATA COLLECTED ######")
+
+            self.output_slots[var_name] = value[var_name]
+
         return True
-    
-    def update_context_with_new_ask_about(self, used_elements, phrases_all, picked_elements_all):
-        interaction_style_prompt = self.get_interaction_styles_prompt()
-        
-        print("interaction_style_prompt:", interaction_style_prompt)
-        ask_about_turn_phrases = self.get_phrases_for_turn(
-            used_elements=used_elements,
-            phrases_all=phrases_all,
-            picked_elements_all=picked_elements_all
 
-        )
-        print("ask_about_turn_phrases:", ask_about_turn_phrases)
-
-        self.my_context.initiate_context([self.user_profile.context,
-                                          interaction_style_prompt,
-                                          ask_about_turn_phrases])
-        
-        language_context = self.user_profile.get_language()
-
-        self.my_context.add_context(language_context)
-
-        return self.my_context.get_context()
-
-    def get_user_response(self, input_msg):
+    def get_response(self, input_msg, llm_type=LLMType.GPT_4O_MINI):
+        self.update_history("Assistant", input_msg)
         self.data_gathering.add_message(self.conversation_history)
 
-        if self.match_provided() and self.all_preferences_and_info_used():
-            
-            print("Match provided. Confirm destination.")
-            user_response = "Start navigation."
-            
-            self.update_history("User", user_response)
-            self.variables_per_turn.append(self.variables_per_turn[-1])
+        if self.end_conversation(input_msg):
+            return "exit"
 
-            self.interaction_count += 1
-            
-            # if self.applied_com:
-            #     # we can only terminated COM already applied
-            #     self.conversation_ended = True # propagate end
-            
-            self.conversation_ended = True
-
-            self.navigation_started = True
-
-            self.intents_user_per_turn.append("confirmation")
-            
-            return user_response
-        
-        elif self.end_conversation(input_msg):
-            print("Stopping conversation based on end condition.")
-            user_response = "Stop."
-
-            self.update_history("User", user_response)
-            self.interaction_count += 1
-
-            # if self.applied_com:
-            #     # we can only terminated COM already applied
-            #     self.conversation_ended = True # propagate end
-            self.conversation_ended = True
-            self.variables_per_turn.append({})  # add empty dict for this turn since no new variables were picke
-            self.intents_user_per_turn.append("stop")
-
-            return user_response
-
-        elif self.repetition_track(input_msg):
-            print("simulating repetition of user message")
-            print("last variables per tun:", self.variables_per_turn[-1])
-
-            ask_repetition = f"""
-                            You are simulating the user. Reformulate the last question you said as a user.
-                            Just output the rephrased version, nothing else. Do not output the same utterance.
-
-                            Last question:{{}}
-                            """.format(self.get_last_user_input())
-            
-            self.my_context.initiate_context([self.user_profile.context,
-                                                self.get_interaction_styles_prompt(),
-                                                ])
-                
-            language_context = self.user_profile.get_language()
-
-            self.my_context.add_context(language_context)            
-            self.my_context.add_context(ask_repetition)
-
-            self.intents_user_per_turn.append(self.intents_user_per_turn[-1])
-            
-            self.variables_per_turn.append(self.variables_per_turn[-1])  # add empty dict for this turn since no new variables were picke
-            
-        elif self.repetition_track(input_msg) == None:
-            # if repeated more than x times decided or navigation already started for COM
-            print("#################")
-            print("CHANGE OF MIND")
-            print("##################")
-            phrases_all = self.phrases_all_com
-            picked_elements_all = self.picked_elements_all_com
-            used_elements = self.used_elements_com
-            extra_phrased_used = self.extra_phrased_used_com
-
-            self.update_context_with_new_ask_about(
-                phrases_all=phrases_all,
-                picked_elements_all=picked_elements_all,
-                used_elements=used_elements
-            )
-            self.applied_com = True
-            self.intents_user_per_turn.append("change_of_mind")
-        else:
-
-            rand_com = random.random()
-
-            if (rand_com < 0.1 and not self.applied_com):
-                print("#################")
-                print("CHANGE OF MIND")
-                print("##################")
-                phrases_all = self.phrases_all_com
-                picked_elements_all = self.picked_elements_all_com
-                used_elements = self.used_elements_com
-                extra_phrased_used = self.extra_phrased_used_com
-                self.applied_com = True
-                self.intents_user_per_turn.append("change_of_mind")
-            else:
-                phrases_all = self.phrases_all
-                picked_elements_all = self.picked_elements_all
-                used_elements = self.used_elements
-                extra_phrased_used = self.extra_phrased_used
-
-            rand = random.random()
-
-            if rand < 0.4 and not self.all_preferences_and_info_used():  
-                print("New ask about added")
-                # add here new information to ask about, only if preferences available
-                self.update_context_with_new_ask_about(
-                    phrases_all=phrases_all,
-                    picked_elements_all=picked_elements_all,
-                    used_elements=used_elements
-                )
-                self.intents_user_per_turn.append("add_preference")
-
-            else:
-                print("ARRIVED AT INFO PHRASES")
-                print("phrases all are:", phrases_all)
-                # take the phrase which dont require los
-                print("##### Simulating phrase without los")
-                num_phrases_extra = len(phrases_all) - len(picked_elements_all)
-                
-                print("len(extra_phrased_used):", len(extra_phrased_used))
-                print("len(picked_elements_all):", len(picked_elements_all))
-
-                # if len(extra_phrased_used) < num_phrases_extra:
-                if True:
-                    extra_phrase = phrases_all[len(picked_elements_all) + len(extra_phrased_used)]
-                    # extra_phrased_used.append(extra_phrase)
-                    self.my_context.add_context(extra_phrase)
-                    self.variables_per_turn.append({})  # add empty dict for this turn since no new variables were picked
-                    # self.my_context.add_context(self.user_profile.get_language())
-                    self.intents_user_per_turn.append("ask")
+        self.repetition_track(input_msg)
+        self.my_context.add_context(self.user_profile.get_language())
 
         history = self.get_history()
-
-        # print("##############\ncontext before user response:", self.my_context.get_context())
-
-        user_response = self.wrapper_pass_llm.run_user_chain_via_pass_llm(
+        user_response = self.wrapper_pass_llm.invoke(
             reminder=self.my_context.get_context(),
             history=history,
-            llm_model="gpt-4o-mini"
+            llm_type=llm_type
         )
 
         self.update_history("User", user_response)
-
         self.interaction_count += 1
 
-        return user_response
+        # optional bookkeeping, no intent logic
+        self.variables_per_turn.append({})
+        self.phrases_per_turn.append(None)
 
-    @staticmethod
-    def formatting(role, msg):
-        return [{"role": role, "content": msg}]
+        return user_response
 
     def get_interaction_styles_prompt(self):
         interaction_style_prompt = []
         for instance in self.user_profile.interaction_styles:
-            if instance.change_language_flag:
-                pass
-            else:
+            if not instance.change_language_flag:
                 interaction_style_prompt.append(instance.get_prompt())
-        return ''.join(interaction_style_prompt)
+        return "".join(interaction_style_prompt)
 
     def open_conversation(self, input_msg=None):
-
-        # self.my_context.initiate_context([self.user_profile.context,
-        #                                   interaction_style_prompt,
-        #                                   self.ask_about])
-
-        self.update_context_with_new_ask_about(picked_elements_all=self.picked_elements_all,
-                                               used_elements=self.used_elements,
-                                               phrases_all=self.phrases_all
-                                               )
+        interaction_style_prompt = self.get_interaction_styles_prompt()
+        self.my_context.initiate_context([self.user_profile.context, interaction_style_prompt, self.ask_about])
+        self.my_context.add_context(self.user_profile.get_language())
 
         history = self.get_history()
 
@@ -605,19 +242,19 @@ class UserGeneration:
             if self.end_conversation(input_msg):
                 return "exit"
             self.repetition_track(input_msg)
-        
-        # print("##############\ncontext before user response:", self.my_context.get_context())
 
-        user_response = self.wrapper_pass_llm.run_user_chain_via_pass_llm(
+        user_response = self.wrapper_pass_llm.invoke(
             reminder=self.my_context.get_context(),
             history=history,
-            llm_model="gpt-4o-mini"
+            llm_type=LLMType.GPT_4O_MINI
         )
 
         self.update_history("User", user_response)
-
         self.data_gathering.add_message(self.conversation_history)
         self.interaction_count += 1
-        self.intents_user_per_turn.append("start")
-        
+
+        # optional bookkeeping, no intent logic
+        self.variables_per_turn.append({})
+        self.phrases_per_turn.append(self.ask_about)
+
         return user_response

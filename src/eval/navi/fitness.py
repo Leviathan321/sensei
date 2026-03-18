@@ -23,8 +23,8 @@ from llm.eval.fitness import FitnessMerged
 def get_fitness_fnc(llm_type = "gpt-5-mini", weights=[0.5, 0.5], dimension_labels = ["C", "R"], max_score=2):
     return FitnessMerged([
         NaviFitnessConversationValidationDimensions(llm_type = llm_type, weights=weights, dimension_labels=dimension_labels, max_score=max_score),
-        NaviFitnessConversationEfficiency(),
-        NaviFitnessConversationEffectiveness(),
+        # NaviFitnessConversationEfficiency(),
+        # NaviFitnessConversationEffectiveness(),
     ])
 
 def get_critical_fnc(fitness_fnc, score_threshold=0.7):
@@ -32,8 +32,8 @@ def get_critical_fnc(fitness_fnc, score_threshold=0.7):
         fitness_names=fitness_fnc.name,
         criticals=[
             (CriticalByFitnessThreshold(mode = "<", score=score_threshold), ["dimensions_fitness"]),
-            (CriticalByFitnessThreshold(mode = "<", score=score_threshold), ["efficiency_fitness"]),
-            (CriticalByFitnessThreshold(mode = "<", score=score_threshold), ["effectiveness_fitness"]),
+            # (CriticalByFitnessThreshold(mode = "<", score=score_threshold), ["efficiency_fitness"]),
+            # (CriticalByFitnessThreshold(mode = "<", score=score_threshold), ["effectiveness_fitness"]),
         ],
         mode="or",
     )
