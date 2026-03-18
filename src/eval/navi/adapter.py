@@ -332,8 +332,6 @@ def convert_to_simout(
 
     llm_turns: List[LLMTurn] = []
     for idx, (q, a) in enumerate(paired):
-        print("idx", idx)
-
         vars_turn = variables_per_turn[idx] if idx < len(variables_per_turn) else None
         retrieved_turn = retrieved_objs_per_turn[idx] if idx < len(retrieved_objs_per_turn) else None
 

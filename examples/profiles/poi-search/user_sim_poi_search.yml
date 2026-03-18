@@ -7,8 +7,6 @@ llm:
 user:
   language: English
   role: you have to act as a user looking for a point of interest (POI) in a city. Your goal is to get a proposal of a venue of the system that fits your preference.
-        If the preferences are met you should ask the system to start navigation to the place proposed. If you started navigation you an also change your mind once and start poi search for different venue.
-        Maximal one change of mind in one conversation.
   context:
     - personality: personalities/in-car-user.yml
     - the user’s language style is chosen randomly and can be formal, neutral, or slangy.
@@ -18,8 +16,9 @@ user:
     - "do not ask for any other information than specified"
     - "you can only apply payment method preferences for bar, car_repair, hotel, cafe, restaurant"
     - "do not hallucinate"
-    - if all the preferences are satisfied you asked for, request starting navigation to the place provided by the system
+    - if all the preferences are satisfied you asked for, you can request starting navigation to the place provided by the system. not earlier.
     - the users position is in the city center of Philadelphia, PA, USA
+    - just output exactly one utterance when generating the user response, do not add any other text or explanation, and do not ask for any other information than specified in the goals. 
   goals:
     - "you are looking for a {{poi_type}}"
     - "insist that it should have payment method {{payment_method}} preference"

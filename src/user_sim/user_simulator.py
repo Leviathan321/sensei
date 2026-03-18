@@ -39,8 +39,11 @@ class LLMCallHandler:
         return self.user_profile.role + reminder + history
 
     def invoke(self, reminder: str, history: str, llm_type: str) -> str:
+        print("using model:", llm_type)
         prompt_str = self.user_role_prompt.format(reminder=reminder, history=history)
+        # print("prompt str:", prompt_str)
         response_text = pass_llm(prompt_str, llm_type = llm_type)
+        # print("response text:", response_text)
         return self.parser.parse(response_text)
 
 
@@ -210,7 +213,7 @@ class UserGeneration:
         user_response = self.wrapper_pass_llm.invoke(
             reminder=self.my_context.get_context(),
             history=history,
-            llm_type=LLMType.GPT_4O
+            llm_type=LLMType.DEEPSEEK_V3_0324
         )
 
         self.update_history("User", user_response)

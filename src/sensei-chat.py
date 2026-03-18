@@ -360,6 +360,7 @@ def build_summary_metadata_from_args(args, execution_time_seconds: float, actual
         "sut": args.sut,
         "weight_clarity": args.weight_clarity,
         "weight_request_orientedness": args.weight_request_orientedness,
+        "critical_threshold": args.critical_threshold,
         "execution_time_seconds": execution_time_seconds,
         "timestamp": timestamp,
         "actual_generations_completed": actual_conversations_completed,
