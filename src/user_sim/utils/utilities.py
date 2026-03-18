@@ -172,7 +172,7 @@ def save_test_conv(history, metadata, test_name, path, serial, conversation_time
         os.makedirs(path_folder)
 
     data = [metadata, cr_time, history]
-    test_folder = path_folder + f"/{serial}"
+    test_folder = path_folder + f"/{serial}/origin"
 
     if not os.path.exists(test_folder):
         os.makedirs(test_folder)
