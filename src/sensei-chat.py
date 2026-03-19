@@ -701,6 +701,7 @@ if __name__ == "__main__":
         # Stop BEFORE starting a new personality if global time budget is exceeded
         if max_time_seconds is not None:
             elapsed = timeit.default_timer() - total_start_global
+            print("elapsed time is:", elapsed)
             if elapsed >= max_time_seconds:
                 print(f"[GLOBAL STOP] Max time reached before starting next personality: {elapsed:.3f}s >= {max_time_seconds:.3f}s")
                 break

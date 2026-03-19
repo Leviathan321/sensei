@@ -27,8 +27,8 @@ do
       --generator_llm "DeepSeek-V3-0324" \
       --judge_llm "gpt-5-mini" \
       --sut_llm "gpt-5-chat" \
-      --population_size 4 \
-      --max_time "00:01:00" \
+      --population_size 4000 \
+      --max_time "00:10:00" \
       --weight_request_orientedness 0.65 \
       --weight_clarity 0.35 \
       --critical_threshold 0.65 \
