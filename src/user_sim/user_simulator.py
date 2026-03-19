@@ -10,8 +10,10 @@ from .utils.utilities import *
 from .data_gathering import *
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-
+import time
 from llm.llms import pass_llm, LLMType
+import time
+import traceback
 
 parser = StrOutputParser()
 logger = logging.getLogger("Info Logger")
@@ -41,12 +43,39 @@ class LLMCallHandler:
     def invoke(self, reminder: str, history: str, llm_type: str) -> str:
         print("using model:", llm_type)
         prompt_str = self.user_role_prompt.format(reminder=reminder, history=history)
-        # print("prompt str:", prompt_str)
-        response_text = pass_llm(prompt_str, llm_type = llm_type)
-        # print("response text:", response_text)
-        return self.parser.parse(response_text)
 
+        last_exc: Exception | None = None
 
+        for attempt in range(1, 6):  # max repeat 5 times
+            try:
+                response_text = pass_llm(prompt_str, llm_type=llm_type)
+
+                # retry on empty model output
+                if response_text is None or not str(response_text).strip():
+                    continue
+
+                parsed = self.parser.parse(response_text)
+
+                # retry on empty parsed output
+                if parsed is None or not str(parsed).strip():
+                    continue
+
+                return parsed
+
+            except Exception as e:
+                last_exc = e
+                print(f"Failure occurred calling LLM (attempt {attempt}/5). Stack trace:")
+                traceback.print_exc()  # prints the current exception's full stack trace to stderr
+                # retry on failure
+                continue
+            finally:
+                # optional tiny delay to avoid hammering the backend
+                if attempt < 5:
+                    time.sleep(0.1)
+
+        # if all retries failed: return empty output (as you requested)
+        # (If you prefer raising instead, tell me.)
+        return ""
 class UserGeneration:
     def __init__(self, user_profile, chatbot, user_id=1):
         self.user_profile = user_profile

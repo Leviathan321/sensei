@@ -95,12 +95,13 @@ def generate_problem_name(
     judge_llm: str,
     seed: int,
     max_time: str,
+    sut_llm:str,
     personality_name: str,
 ) -> str:
     # <algo>_<sut>_n<population_size>_time<max_time>_gen<generator_llm>_judge<judge_llm>_seed<seed>_pers<personality>
     safe_time = str(max_time).replace(":", "-")
     return (
-        f"{algo.upper()}_{sut}_n{population_size}_t{safe_time}"
+        f"{algo.upper()}_{sut}_{sut_llm}_n{population_size}_t{safe_time}"
         f"_gen-{generator_llm}_judge-{judge_llm}_seed{seed}"
     )
 
@@ -358,6 +359,7 @@ def build_summary_metadata_from_args(args, execution_time_seconds: float, actual
         "population_size": args.population_size,
         "generations": None,
         "sut": args.sut,
+        "sut_llm": args.sut_llm,
         "weight_clarity": args.weight_clarity,
         "weight_request_orientedness": args.weight_request_orientedness,
         "critical_threshold": args.critical_threshold,
@@ -717,7 +719,8 @@ if __name__ == "__main__":
             judge_llm=args.judge_llm,
             seed=args.seed,
             max_time=args.max_time,
-            personality_name=personality_name
+            personality_name=personality_name,
+            sut_llm=args.sut_llm
         )
 
         tags = [f"{k}:{v}" for k, v in vars(args).items() if not k.startswith("_")]

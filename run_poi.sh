@@ -35,5 +35,4 @@ do
       --seed ${SEED} \
       --wandb_project "NaviYelp" \
       2>&1 | tee "${RUN_DIR}/run.log"
-
 done
