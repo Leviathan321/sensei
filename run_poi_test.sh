@@ -26,13 +26,13 @@ do
       --save_folder "${RUN_DIR}" \
       --generator_llm "DeepSeek-V3-0324" \
       --judge_llm "gpt-5-mini" \
-      --sut_llm "gpt-5-chat" \
+      --sut_llm "gpt-4o" \
       --population_size 4000 \
       --max_time "00:01:00" \
       --weight_request_orientedness 0.65 \
       --weight_clarity 0.35 \
       --critical_threshold 0.65 \
       --seed ${SEED} \
-      --wandb_project "TestNaviYelp" \
+      --wandb_project "NaviYelp" \
       2>&1 | tee "${RUN_DIR}/run.log"
 done

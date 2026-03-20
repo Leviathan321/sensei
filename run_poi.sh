@@ -26,7 +26,7 @@ do
       --save_folder "${RUN_DIR}" \
       --generator_llm "DeepSeek-V3-0324" \
       --judge_llm "gpt-5-mini" \
-      --sut_llm "gpt-5-chat" \
+      --sut_llm "gpt-4o" \
       --population_size 10000 \
       --max_time "05:00:00" \
       --weight_request_orientedness 0.65 \

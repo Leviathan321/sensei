@@ -101,8 +101,7 @@ def generate_problem_name(
     # <algo>_<sut>_n<population_size>_time<max_time>_gen<generator_llm>_judge<judge_llm>_seed<seed>_pers<personality>
     safe_time = str(max_time).replace(":", "-")
     return (
-        f"{algo.upper()}_{sut}_{sut_llm}_n{population_size}_t{safe_time}"
-        f"_gen-{generator_llm}_judge-{judge_llm}_seed{seed}"
+        f"{algo.upper()}_{sut.lower()}_{sut_llm}_{population_size}n_{safe_time}t_{seed}seed"
     )
 
 
