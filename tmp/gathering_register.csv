@@ -1,6 +1,6 @@
 topic,verification,data
-you_are_looking_for_a_cafe,True,Good Karma Cafe
-insist_that_it_should_have_payment_method_CREDIT_CARD_preference,False,
-insist_that_it_should_have_minimum_4.0_rating_of_the_place,True,4.5
-insist_that_it_should_have_parking_nearby:_YESS,True,nearby parking available
-"ask_for_something_else_related_to_the_poi_not_asked_before_e.g._travel_distance,_or_how_busy_the_place_is._it_should_not_be_a_preference",True,about 1 mile from city center and busier during peak hours
+you_are_looking_for_a_car_repair,True,car repair shop
+insist_that_it_should_have_payment_method_NO_PREFERENCE_preference,True,no preference
+insist_that_it_should_have_minimum_3.5_rating_of_the_place,True,minimum 3.5 rating
+insist_that_it_should_have_parking_nearby:_NOO,False,
+"ask_for_something_else_related_to_the_poi_not_asked_before_e.g._travel_distance,_or_how_busy_the_place_is._it_should_not_be_a_preference",True,how busy the place is

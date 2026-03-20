@@ -145,7 +145,8 @@ class ChatbotAssistant:
         """
         Calls Azure OpenAI and returns the parsed JSON object.
         """
-        max_retries = 5
+        max_retries = 3
+        failed = False          
         for attempt in range(1, max_retries + 1):
             try:
                 response = client.chat.completions.create(
@@ -157,14 +158,20 @@ class ChatbotAssistant:
             except Exception as e:
                 logger.error(f"Attempt {attempt} failed: {e}")
                 if attempt == max_retries:
-                    raise
+                    failed = True
                 time.sleep(1)
 
-        result =  response.choices[0].message.content
-        # print("Raw LLM output for data gathering:", result)  # Debugging output
-        result = repair_json(result)
-        # print("Repaired LLM output for data gathering:", result)  # Debugging output
-        return json.loads(result)
+        if failed:
+            # Fallback behavior: return a valid object matching the expected schema
+            logger.error("Failed to get valid response from LLM after multiple attempts; returning fallback.")
+            return {
+                key: {"verification": False, "data": None}
+                for key in self.ask_about_keys
+            }
+        else:
+            result = response.choices[0].message.content
+            result = repair_json(result)
+            return json.loads(result)
 
     def create_dataframe(self):
         """

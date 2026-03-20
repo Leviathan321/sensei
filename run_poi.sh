@@ -11,7 +11,7 @@ mkdir -p "${BASE_DIR}"
 
 echo "Storing all runs in: ${BASE_DIR}"
 
-for SEED in 1 2 3 4 5 6
+for SEED in 1 3 4 5 6
 do
   RUN_DIR="${BASE_DIR}/seed_${SEED}"
   mkdir -p "${RUN_DIR}"

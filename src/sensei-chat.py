@@ -423,10 +423,18 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
                 break
 
             the_chatbot = build_chatbot(technology, chatbot)
-            the_chatbot.fallback = user_profile.fallback
+            the_chatbot.fallback = user_profile.fallback    
+
+            # helper defined once (outside the while loop)
+            def id_from_ns(seed=0):
+                ns = time.time_ns()  # current time in nanoseconds
+                # keep it in a bounded range (0..999999) similar to your logic
+                return ((ns // 800) + seed * 2) % 1_000_000
+            user_id = id_from_ns()  # generate user_id once per conversation, can be used in all turns
+            print("User ID:", user_id)
 
             # IMPORTANT: no intent-era llm_generator arg
-            the_user = UserGeneration(user_profile, the_chatbot, user_id=i)
+            the_user = UserGeneration(user_profile, the_chatbot, user_id=user_id)
 
             bot_starter = user_profile.is_starter
             response_time = []
