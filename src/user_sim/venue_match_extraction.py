@@ -1,10 +1,11 @@
 import json
 import logging
+import os
 import time
+
+from dotenv import load_dotenv
 from json_repair import repair_json
 from openai import AzureOpenAI
-import os
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -95,6 +96,10 @@ Return JSON only:
         return bool(x)
 
     def detect(self, model="gpt-5-chat", max_retries=3, retry_delay=1):
+        """
+        Returns a dict matching the schema in the prompt.
+        If max retries are reached (API failure, invalid JSON, etc.), returns a fallback with match=false.
+        """
         last_err = None
 
         for attempt in range(1, max_retries + 1):
@@ -103,8 +108,9 @@ Return JSON only:
                     model=model,
                     messages=self.messages,
                 )
-                raw = resp.choices[0].message.content
-                fixed = repair_json(raw)
+
+                raw = resp.choices[0].message.content if resp and resp.choices else ""
+                fixed = repair_json(raw or "")
                 payload = json.loads(fixed)
 
                 result = {
@@ -125,6 +131,18 @@ Return JSON only:
                 if not result["venue_name"]:
                     result["match"] = False
 
+                # Extra guardrails: ensure lists are lists, evidence has required keys
+                if not isinstance(result["user_preferences"], list):
+                    result["user_preferences"] = []
+                if not isinstance(result["matched_preferences"], list):
+                    result["matched_preferences"] = []
+                if not isinstance(result["unmet_preferences"], list):
+                    result["unmet_preferences"] = []
+                if not isinstance(result["evidence"], dict):
+                    result["evidence"] = {"assistant_quote": None, "user_preferences_quote": None}
+                result["evidence"].setdefault("assistant_quote", None)
+                result["evidence"].setdefault("user_preferences_quote", None)
+
                 return result
 
             except Exception as e:
@@ -133,5 +151,19 @@ Return JSON only:
                 if attempt < max_retries:
                     time.sleep(retry_delay)
 
-        logger.error("VenueMatchExtraction: max retries reached.")
-        raise last_err
+        logger.error(f"VenueMatchExtraction: max retries reached. Returning fallback match=false. Last error: {last_err}")
+
+        # Fallback: strict schema (no extra keys)
+        return {
+            "match": False,
+            "venue_type": None,
+            "venue_name": None,
+            "venue_details": None,
+            "user_preferences": [],
+            "matched_preferences": [],
+            "unmet_preferences": [],
+            "evidence": {
+                "assistant_quote": None,
+                "user_preferences_quote": None,
+            },
+        }
