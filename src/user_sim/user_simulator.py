@@ -4,6 +4,8 @@ import sys
 sys.path.insert(0, "../opensbt-llm/venv/lib/python3.11/site-packages")
 sys.path.insert(0, "../opensbt-llm/")
 
+from user_sim.venue_match_extraction import VenueMatchExtraction
+
 from .data_extraction import DataExtraction
 from .utils.config import errors
 from .utils.utilities import *
@@ -185,6 +187,13 @@ class UserGeneration:
 
     def update_history(self, role, message):
         self.conversation_history["interaction"].append({role: message})
+   
+    def match_provided(self):
+        verifier = VenueMatchExtraction(self.conversation_history)
+        verdict = verifier.detect()
+        print("Venue match verdict:", verdict)
+        # print(verdict["match"], verdict["venue_name"], verdict["venue_type"])
+        return verdict["match"]
 
     def end_conversation(self, input_msg):
         if self.goal_style[0] in ("steps", "random steps"):
@@ -196,8 +205,11 @@ class UserGeneration:
             return True
 
         if "all_answered" in self.goal_style[0] or "default" in self.goal_style[0]:
+            print("self.goal_style:", self.goal_style)
             if (
-                (self.data_gathering.gathering_register["verification"].all() and self.all_data_collected())
+                (self.match_provided()) \
+                    #self.data_gathering.gathering_register["verification"].all() and 
+                # self.all_data_collected())
                 or self.goal_style[2] <= self.interaction_count
             ):
                 logger.info(f"limit amount of interactions achieved: {self.goal_style[2]}. Ending conversation.")
@@ -220,7 +232,8 @@ class UserGeneration:
                 var_dict["type"],
                 var_dict["description"],
             )
-            value = my_data_extract.get_data_extraction()
+            # value = my_data_extract.get_data_extraction()
+            value = "mocked"
             if value[var_name] is None:
                 return False
 

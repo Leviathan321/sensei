@@ -500,6 +500,25 @@ def generate(technology, chatbot, user, personality, save_folder, summary_args, 
                                     llm_type=generator_llm)
 
                 if user_msg == "exit":
+                    if the_user.goal_style[2] > the_user.interaction_count:
+                        user_msg = "Start navigation."
+                        the_user.update_history("User", user_msg)
+                        # send to sut
+                        print_user(user_msg)
+                        is_ok, response, retrieved_obj = _execute_with_input_compat(
+                            the_chatbot,
+                            user_msg,
+                            user_id=getattr(the_user, "user_id", None),
+                            llm_type=sut_llm,
+                        )
+                        the_user.update_history("Assistant", response)
+                        print_chatbot(response)
+
+                        the_user.interaction_count += 1
+
+                        # optional bookkeeping, no intent logic
+                        the_user.variables_per_turn.append({})
+                        the_user.phrases_per_turn.append(None)
                     break
 
                 print_user(user_msg)
