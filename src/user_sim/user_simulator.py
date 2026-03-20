@@ -16,6 +16,7 @@ import time
 from llm.llms import pass_llm, LLMType
 import time
 import traceback
+import random
 
 parser = StrOutputParser()
 logger = logging.getLogger("Info Logger")
