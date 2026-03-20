@@ -206,8 +206,9 @@ class UserGeneration:
 
         if "all_answered" in self.goal_style[0] or "default" in self.goal_style[0]:
             print("self.goal_style:", self.goal_style)
+            rand = random.random()
             if (
-                (self.match_provided()) \
+                (self.match_provided() and rand < 0.5) \
                     #self.data_gathering.gathering_register["verification"].all() and 
                 # self.all_data_collected())
                 or self.goal_style[2] <= self.interaction_count
