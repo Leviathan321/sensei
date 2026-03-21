@@ -28,11 +28,11 @@ do
       --judge_llm "gpt-5-mini" \
       --sut_llm "gpt-4o" \
       --population_size 4000 \
-      --max_time "00:03:00" \
+      --max_time "00:02:00" \
       --weight_request_orientedness 0.65 \
       --weight_clarity 0.35 \
       --critical_threshold 0.65 \
       --seed ${SEED} \
-      --wandb_project "NaviYelp" \
+      --wandb_project "TestNaviYelp" \
       2>&1 | tee "${RUN_DIR}/run.log"
 done

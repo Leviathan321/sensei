@@ -207,13 +207,18 @@ class UserGeneration:
 
         if "all_answered" in self.goal_style[0] or "default" in self.goal_style[0]:
             print("self.goal_style:", self.goal_style)
-            rand = random.random()
+            # rand = random.random()
             if (
-                (self.match_provided() and rand < 0.5) \
-                    #self.data_gathering.gathering_register["verification"].all() and 
-                # self.all_data_collected())
+                (self.data_gathering.gathering_register["verification"].all() and \
+                self.all_data_collected())
                 or self.goal_style[2] <= self.interaction_count
             ):
+            # if (
+            #     (self.match_provided() and rand < 0.5) \
+            #         #self.data_gathering.gathering_register["verification"].all() and 
+            #     # self.all_data_collected())
+            #     or self.goal_style[2] <= self.interaction_count
+            # ):
                 logger.info(f"limit amount of interactions achieved: {self.goal_style[2]}. Ending conversation.")
                 return True
             return False
@@ -234,8 +239,8 @@ class UserGeneration:
                 var_dict["type"],
                 var_dict["description"],
             )
-            # value = my_data_extract.get_data_extraction()
-            value = "mocked"
+            value = my_data_extract.get_data_extraction()
+            # value = "mocked"
             if value[var_name] is None:
                 return False
 

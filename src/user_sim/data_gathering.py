@@ -146,7 +146,8 @@ class ChatbotAssistant:
         Calls Azure OpenAI and returns the parsed JSON object.
         """
         max_retries = 3
-        failed = True  ############ CHANGED TO AVOID GENERATION
+        failed = False  
+        ############ CHANGED TO AVOID GENERATION
         #########################          
         for attempt in range(1, max_retries + 1):
             try:

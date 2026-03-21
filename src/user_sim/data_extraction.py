@@ -148,8 +148,8 @@ class DataExtraction:
             except Exception as e:
                 logger.warning(f"Attempt {attempt} failed: {e}")
                 if attempt == max_retries:
-                    logger.error("Max retries reached. Raising exception.")
-                    raise
+                    logger.error("Max retries reached. Using default value.")
+                    value = None
                 else:
                     time.sleep(retry_delay)
         return {self.variable: value}
