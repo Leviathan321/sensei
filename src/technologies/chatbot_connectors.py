@@ -43,8 +43,8 @@ class Chatbot:
 #################################################################
 # ConvNavi
 class ChatbotConvNavi(Chatbot):
-    def __init__(self, url):
-        Chatbot.__init__(self, url = "http://localhost:8000/query")
+    def __init__(self, url =  "http://localhost:8000/query"):
+        Chatbot.__init__(self, url)
 
     def execute_with_input(self, user_msg, user_id = 1, 
                            llm_type = "gpt-4o-mini"):
