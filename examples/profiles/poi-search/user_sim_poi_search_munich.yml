@@ -17,7 +17,7 @@ user:
     - "you can only apply payment method preferences for bar, car_repair, hotel, cafe, restaurant"
     - "do not hallucinate"
     - if all the preferences are satisfied you asked for, you can request starting navigation to the place provided by the system. not earlier.
-    - the users position is in the city center of Philadelphia, PA, USA
+    - the users position is in Munich, Germany.
     - just output exactly one utterance when generating the user response, do not add any other text or explanation, and do not ask for any other information than specified in the goals. 
     - "ask for a specific fuel price preference around 2$ or below 2$, if venue is gas station"
   goals:
@@ -25,7 +25,7 @@ user:
     - "insist that it should have payment method {{payment_method}} preference"
     - "insist that it should have minimum {{rating}} rating of the place"
     - "insist that it should have parking nearby: {{parking_yes}}"
-    - "ask for something else related to the poi not asked before e.g. travel distance, or how busy the place is. it should not be a preference"
+    - "ask for something else related to the poi not asked before e.g. travel distance, or how busy the place is. It should not be a preference"
 
     - poi_type:
         function: random(1)

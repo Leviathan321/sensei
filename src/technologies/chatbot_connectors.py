@@ -4,8 +4,18 @@ from abc import abstractmethod
 import requests
 from user_sim.utils.config import errors
 import logging
+import os
+from dotenv import load_dotenv
+from llm.sut.ipa_chatbmw import ChatBMWIPA
+
+load_dotenv()
+
+CHATBMW_ADDRESS = os.getenv("CHATBMW_ADDRESS", "http://localhost:8000")
+CHATBMW_API_KEY = os.getenv("CHATBMW_API_KEY")
 
 logger = logging.getLogger('Info Logger')
+
+from llm.sut.ipa_chatbmw import ChatBMWIPA
 
 ###################################################
 # THE CONNECTORS NEED HEAVY REFACTORING TO JUST
@@ -61,7 +71,84 @@ class ChatbotConvNavi(Chatbot):
             logger = logging.getLogger('my_app_logger')
             logger.log(f"Couldn't get response from the server: {e}")
             return False, 'chatbot internal error'
+############################################################################
 
+import json
+import logging
+import time
+from typing import Any, Dict, Optional
+
+import requests
+
+class ChatbotChatBMW:
+    global_user_counter = 0  # replicate ChatBMWIPA static counter
+
+    def __init__(self, url: Optional[str] = None, api_key: Optional[str] = None):
+        self.url = url or CHATBMW_ADDRESS
+        self.api_key = api_key if api_key is not None else CHATBMW_API_KEY
+        self.logger = logging.getLogger('my_app_logger')
+
+    @staticmethod
+    def _generate_user_id(seed: int = 0) -> int:
+        ns = time.time_ns()
+        return ((ns // 800) + seed*2) % 1000000
+
+    def execute_with_input(
+        self,
+        msg: str,
+        user_id: Optional[int] = None,
+        llm_type: str = "gpt-4o-mini",
+        max_retries: int = 3,
+    ):
+        """Send utterance to ChatBMW server directly without dependency."""
+        if user_id is None:
+            if ChatbotChatBMW.global_user_counter == 0:
+                ChatbotChatBMW.global_user_counter = self._generate_user_id()
+            else:
+                ChatbotChatBMW.global_user_counter += 1
+            user_id_val = ChatbotChatBMW.global_user_counter
+        else:
+            user_id_val = user_id
+
+        payload = {
+            "user_id": str(user_id_val),
+            "user_input": msg
+        }
+
+        headers = {
+            "Content-Type": "application/json",
+            "API-KEY": self.api_key,
+        }
+        print("request headers:", headers)
+        print("request content:", payload)
+        attempt = 0
+        while attempt < max_retries:
+            try:
+                self.logger.debug(f"[ChatbotChatBMW] Sending payload: {payload}")
+                response = requests.post(
+                    f"{self.url}/interact?los=true&documents=true",
+                    headers=headers,
+                    data=json.dumps(payload)
+                )
+                response.raise_for_status()
+                resp_json = response.json()
+                               
+                print("response:", resp_json)
+          
+                # Extract answer and objects (replace with real parsing if needed)
+                message = resp_json.get("data").get("result")
+                # retrieved_obj = resp_json.get("data").get("los")
+                retrieved_obj = ChatBMWIPA._parse_response_to_content_outputs(resp_json)
+                return True, message, retrieved_obj
+
+            except Exception as e:
+                self.logger.error(f"[ChatbotChatBMW] Request attempt {attempt+1} failed: {e}")
+                attempt += 1
+                if attempt >= max_retries:
+                    return False, f"chatbot request failed after {max_retries} attempts", {}
+            except json.JSONDecodeError:
+                self.logger.error("[ChatbotChatBMW] Invalid JSON response")
+                return False, "Invalid JSON response from server", {}
 ##############################################################################################################
 # RASA
 class ChatbotRasa(Chatbot):

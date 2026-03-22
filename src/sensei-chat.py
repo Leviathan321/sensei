@@ -1,3 +1,19 @@
+import sys
+from pathlib import Path
+import site
+
+for name in ["opensbt-llm", "OpenSBT-LLM"]:
+    base = Path("..") / name
+    if base.exists():
+        sys.path.insert(0, str(base))
+        site = base / "venv/lib/python3.11/site-packages"
+        if site.exists():
+            sys.path.insert(0, str(site))
+        break
+
+sys.path.insert(0,"/home/q680122/.pyenv/versions/3.11.8/envs/myvenv/lib/python3.11/site-packages/")
+
+
 from importlib.resources import path
 import time
 import timeit
@@ -7,7 +23,6 @@ from argparse import ArgumentParser
 from datetime import datetime, timedelta
 import random
 import os
-from pathlib import Path
 
 import wandb
 
@@ -18,7 +33,7 @@ from colorama import Fore, Style
 from technologies.chatbot_connectors import (
     Chatbot, ChatbotConvNavi, ChatbotRasa, ChatbotTaskyto, ChatbotAdaUam, ChatbotMillionBot,
     ChatbotLolaUMU, ChatbotServiceform, KukiChatbot, JulieChatbot, ChatbotCatalinaRivas, ChatbotSaicMalaga,
-    ChatbotGenion
+    ChatbotGenion, ChatbotChatBMW
 )
 from user_sim.data_extraction import DataExtraction
 from user_sim.role_structure import *
@@ -330,6 +345,7 @@ def parse_profiles(user_path):
 def build_chatbot(technology, chatbot) -> Chatbot:
     default = Chatbot
     chatbot_builder = {
+        'chatbmw' : ChatbotChatBMW,
         'convnavi': ChatbotConvNavi,
         'rasa': ChatbotRasa,
         'taskyto': ChatbotTaskyto,
@@ -650,6 +666,7 @@ def build_arg_parser() -> ArgumentParser:
         "--technology",
         required=True,
         choices=[
+            "chatbmw",
             "convnavi",
             "rasa",
             "taskyto",
@@ -739,7 +756,7 @@ if __name__ == "__main__":
 
         run_name = generate_problem_name(
             algo=args.algorithm,
-            sut=args.sut,
+            sut=args.sut, # need to fix
             population_size=args.population_size,
             generator_llm=args.generator_llm,
             judge_llm=args.judge_llm,

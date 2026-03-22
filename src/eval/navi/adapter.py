@@ -275,7 +275,7 @@ def _map_retrieved_to_content_output_list(retrieved_for_turn: Any) -> List[NaviC
     return outs
 
 def evaluate_simout(simout, args):
-    fitness_fnc = get_fitness_fnc(llm_type=LLMType(args.judge_llm), weights=[args.weight_clarity, args.weight_request_orientedness], dimension_labels=["Clarity", "Request-Orientedness"], max_score=1)
+    fitness_fnc = get_fitness_fnc(llm_type=LLMType(args.judge_llm), weights=[args.weight_clarity, args.weight_request_orientedness], dimension_labels=["Clarity", "Request-Orientedness"], max_score=2)
     fitness = fitness_fnc.eval(simout)
     print("fitness", fitness)
     vector_fitness = np.array(fitness)

@@ -1,8 +1,19 @@
 import logging
 from typing import List
 import sys
-sys.path.insert(0, "../opensbt-llm/venv/lib/python3.11/site-packages")
-sys.path.insert(0, "../opensbt-llm/")
+from pathlib import Path
+import site
+
+for name in ["opensbt-llm", "OpenSBT-LLM"]:
+    base = Path("..") / name
+    if base.exists():
+        sys.path.insert(0, str(base))
+        site = base / "venv/lib/python3.11/site-packages"
+        if site.exists():
+            sys.path.insert(0, str(site))
+        break
+
+sys.path.insert(0,"/home/q680122/.pyenv/versions/3.11.8/envs/myvenv/lib/python3.11/site-packages/")
 
 from user_sim.venue_match_extraction import VenueMatchExtraction
 
