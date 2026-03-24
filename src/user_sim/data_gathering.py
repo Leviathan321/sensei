@@ -147,8 +147,7 @@ class ChatbotAssistant:
         """
         max_retries = 3
         failed = False  
-        ############ CHANGED TO AVOID GENERATION
-        #########################          
+
         for attempt in range(1, max_retries + 1):
             try:
                 response = client.chat.completions.create(
@@ -170,10 +169,25 @@ class ChatbotAssistant:
                 key: {"verification": False, "data": None}
                 for key in self.ask_about_keys
             }
-        else:
-            result = response.choices[0].message.content
-            result = repair_json(result)
+
+        # At this point, response exists
+        try:
+            # If response is a string, use it directly
+            if isinstance(response, str):
+                result = response
+            else:
+                result = response.choices[0].message.content
+
+            result = repair_json(result)  # Ensure valid JSON string
             return json.loads(result)
+
+        except Exception as e:
+            logger.error(f"Failed to parse LLM response: {e}")
+            # Return fallback if parsing fails
+            return {
+                key: {"verification": False, "data": None}
+                for key in self.ask_about_keys
+            }
 
     def create_dataframe(self):
         """
