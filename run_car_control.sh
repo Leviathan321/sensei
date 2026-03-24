@@ -28,12 +28,12 @@ do
       --judge_llm "gpt-5-mini" \
       --sut_llm "gpt-4o" \
       --population_size 10000 \
-      --max_time "00:05:00" \
+      --max_time "03:00:00" \
       --weight_request_orientedness 0.65 \
       --weight_clarity 0.35 \
       --critical_threshold 0.65 \
       --seed ${SEED} \
-      --wandb_project "CarControl" \
+      --wandb_project "CarControlBMW" \
       2>&1 | tee "${RUN_DIR}/run.log"
 
 done
