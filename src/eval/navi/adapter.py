@@ -23,6 +23,8 @@ from llm.model.models import Turn as LLMTurn
 from eval.navi.models import NaviContentInput, NaviContentOutput
 from llm.model.models import Coordinates
 from eval.navi.fitness import get_fitness_fnc, get_critical_fnc
+from eval.navi.fitness import get_fitness_fnc_carcontrol, get_critical_fnc_carcontrol
+
 from llm.llms import LLMType
 
 import numpy as np
@@ -275,7 +277,18 @@ def _map_retrieved_to_content_output_list(retrieved_for_turn: Any) -> List[NaviC
     return outs
 
 def evaluate_simout(simout, args):
-    fitness_fnc = get_fitness_fnc(llm_type=LLMType(args.judge_llm), weights=[args.weight_clarity, args.weight_request_orientedness], dimension_labels=["Clarity", "Request-Orientedness"], max_score=2)
+    if "car" in args.user:
+        print("car control case study")
+        fitness_fnc = get_fitness_fnc_carcontrol(llm_type=LLMType(args.judge_llm), 
+                                weights=[args.weight_clarity, args.weight_request_orientedness],
+                                dimension_labels=["Clarity", "Request-Orientedness"], 
+                                max_score=2)
+    else:
+        print("navi case study")
+        fitness_fnc = get_fitness_fnc(llm_type=LLMType(args.judge_llm), 
+                                    weights=[args.weight_clarity, args.weight_request_orientedness],
+                                    dimension_labels=["Clarity", "Request-Orientedness"], 
+                                    max_score=2)
     fitness = fitness_fnc.eval(simout)
     print("fitness", fitness)
     vector_fitness = np.array(fitness)

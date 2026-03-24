@@ -21,7 +21,7 @@ do
   PYTHONPATH=src stdbuf -oL -eL python src/sensei-chat.py \
       --technology convnavi \
       --chatbot http://127.0.0.1:8000/query \
-      --user examples/profiles/poi-search \
+      --user examples/profiles/poi-search/user_sim_poi_search.yml \
       --personality ./personalities_car/ \
       --save_folder "${RUN_DIR}" \
       --generator_llm "DeepSeek-V3-0324" \

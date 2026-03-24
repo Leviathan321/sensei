@@ -20,6 +20,8 @@ from examples.navi.fitness_mt import NaviFitnessConversationEffectiveness, NaviF
 from llm.eval.critical import CriticalByFitnessThreshold, CriticalMerged
 from llm.eval.fitness import FitnessMerged
 
+from examples.car_control.fitness_mt import CCFitnessConversationValidationDimensions
+
 def get_fitness_fnc(llm_type = "gpt-5-mini", weights=[0.5, 0.5], dimension_labels = ["C", "R"], max_score=2):
     return FitnessMerged([
         NaviFitnessConversationValidationDimensions(llm_type = llm_type, weights=weights, dimension_labels=dimension_labels, max_score=max_score),
@@ -27,7 +29,24 @@ def get_fitness_fnc(llm_type = "gpt-5-mini", weights=[0.5, 0.5], dimension_label
         # NaviFitnessConversationEffectiveness(),
     ])
 
+def get_fitness_fnc_carcontrol(llm_type = "gpt-5-mini", weights=[0.5, 0.5], dimension_labels = ["C", "R"], max_score=2):
+    return FitnessMerged([
+        CCFitnessConversationValidationDimensions(llm_type = llm_type, weights=weights, dimension_labels=dimension_labels, max_score=max_score),
+        # CCFitnessConversationEfficiency(),
+        # CCFitnessConversationEffectiveness(),
+    ])
+
 def get_critical_fnc(fitness_fnc, score_threshold=0.7):
+    return CriticalMerged(
+        fitness_names=fitness_fnc.name,
+        criticals=[
+            (CriticalByFitnessThreshold(mode = "<", score=score_threshold), ["dimensions_fitness"]),
+            # (CriticalByFitnessThreshold(mode = "<", score=score_threshold), ["efficiency_fitness"]),
+            # (CriticalByFitnessThreshold(mode = "<", score=score_threshold), ["effectiveness_fitness"]),
+        ],
+        mode="or",
+    )
+def get_critical_fnc_carcontrol(fitness_fnc, score_threshold=0.7):
     return CriticalMerged(
         fitness_names=fitness_fnc.name,
         criticals=[
