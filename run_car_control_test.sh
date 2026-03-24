@@ -19,8 +19,8 @@ do
   echo "Running seed ${SEED}"
 
   PYTHONPATH=src stdbuf -oL -eL python src/sensei-chat.py \
-      --technology convnavi \
-      --chatbot http://127.0.0.1:8500/ \
+      --technology chatbmw \
+      --chatbot http://127.0.0.1:8500 \
       --user examples/profiles/car-control/user_sim_car_control.yml \
       --personality ./personalities_car/ \
       --save_folder "${RUN_DIR}" \
@@ -33,7 +33,7 @@ do
       --weight_clarity 0.35 \
       --critical_threshold 0.65 \
       --seed ${SEED} \
-      --wandb_project "CarControl" \
+      --wandb_project "TestCarControlBMW" \
       2>&1 | tee "${RUN_DIR}/run.log"
 
 done

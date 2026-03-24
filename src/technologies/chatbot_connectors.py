@@ -10,7 +10,7 @@ from llm.sut.ipa_chatbmw import ChatBMWIPA
 
 load_dotenv()
 
-CHATBMW_ADDRESS = os.getenv("CHATBMW_ADDRESS", "http://localhost:8000")
+CHATBMW_ADDRESS = os.getenv("CHATBMW_ADDRESS", "http://localhost:8500")
 CHATBMW_API_KEY = os.getenv("CHATBMW_API_KEY")
 
 logger = logging.getLogger('Info Logger')
@@ -84,6 +84,7 @@ class ChatbotChatBMW:
     global_user_counter = 0  # replicate ChatBMWIPA static counter
 
     def __init__(self, url: Optional[str] = None, api_key: Optional[str] = None):
+        print("url provided:", url)
         self.url = url or CHATBMW_ADDRESS
         self.api_key = api_key if api_key is not None else CHATBMW_API_KEY
         self.logger = logging.getLogger('my_app_logger')
