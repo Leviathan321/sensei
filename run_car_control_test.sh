@@ -34,6 +34,7 @@ do
       --critical_threshold 0.65 \
       --seed ${SEED} \
       --wandb_project "TestCarControlBMW" \
+      --shuffle_personalities
       2>&1 | tee "${RUN_DIR}/run.log"
 
 done
