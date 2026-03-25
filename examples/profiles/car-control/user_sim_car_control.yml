@@ -68,7 +68,7 @@ conversation:
   goal_style:
     all_answered:
       export: true
-      limit: 6
+      limit: 4
 
   interaction_style:
     - random:

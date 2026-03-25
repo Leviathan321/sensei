@@ -19,7 +19,7 @@ do
   echo "Running seed ${SEED}"
 
   PYTHONPATH=src stdbuf -oL -eL python src/sensei-chat.py \
-      --technology convnavi \
+      --technology chatbmw \
       --chatbot http://127.0.0.1:8500 \
       --user examples/profiles/car-control/user_sim_car_control.yml \
       --personality ./personalities_car/ \
@@ -28,12 +28,13 @@ do
       --judge_llm "gpt-5-mini" \
       --sut_llm "gpt-4o" \
       --population_size 10000 \
-      --max_time "00:05:00" \
+      --max_time "00:01:00" \
       --weight_request_orientedness 0.65 \
       --weight_clarity 0.35 \
       --critical_threshold 0.65 \
       --seed ${SEED} \
-      --wandb_project "TestCarControlYELP" \
+      --wandb_project "TestCarControlBMW" \
       --shuffle_personalities
       2>&1 | tee "${RUN_DIR}/run.log"
+
 done
